@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: yorai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: yorai
+      POSTGRES_PASSWORD: yorai_password
+      POSTGRES_DB: yorai_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - yorai_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  yorai_postgres_data:

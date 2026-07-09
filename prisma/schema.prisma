@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ASPIRANT
+  CURRENT_STUDENT
+  ALUMNI
+  MODERATOR
+  COLLEGE_REP
+}
+
+enum QuestionStatus {
+  OPEN
+  ANSWERED
+  CLOSED
+  FLAGGED
+}
+
+enum ModerationStatus {
+  VISIBLE
+  HIDDEN
+  FLAGGED
+  DISPUTED
+  OUTDATED
+}
+
+enum ClaimStatus {
+  CONFIRMED
+  MIXED
+  BRANCH_SPECIFIC
+  RECENTLY_CHANGED
+  NEEDS_MORE_RESPONSES
+  DISPUTED
+  OUTDATED
+}
+
+enum ValidationTargetType {
+  QUESTION
+  ANSWER
+  EXPERIENCE_POST
+  CLAIM_REALITY
+  WHAT_WORKS_POST
+}
+
+enum ValidationType {
+  MATCHES_MY_EXPERIENCE
+  PARTIALLY_TRUE
+  NOT_TRUE_FOR_MY_BRANCH
+  CHANGED_RECENTLY
+  NEEDS_CONTEXT
+  DISAGREE
+  CAN_ADD_PROOF
+}
+
+enum ProofVisibility {
+  PUBLIC
+  MODERATOR_ONLY
+  SUMMARY_ONLY
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTIONED
+  REJECTED
+}
+
+enum ContextAttachmentTargetType {
+  THREAD
+  REPLY
+  EXPERIENCE
+  INSIGHT
+}
+
+enum ContextAttachmentVisibility {
+  MODERATOR_ONLY
+  SUMMARY_ONLY
+  PUBLIC_AFTER_REVIEW
+}
+
+enum ContextAttachmentModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_REDACTION
+}
+
+model User {
+  id                   String             @id @default(cuid())
+  name                 String
+  email                String             @unique
+  anonymousDisplayName String?
+  role                 UserRole
+  verificationLevel    Int                @default(1)
+  collegeId            String?
+  branch               String?
+  batch                String?
+  year                 String?
+  hostelStatus         String?
+  interestedBranch     String?
+  trustScore           Int                @default(0)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  college              College?           @relation(fields: [collegeId], references: [id])
+  questions            Question[]
+  answers              Answer[]
+  experiences          ExperiencePost[]
+  whatWorksPosts       WhatWorksPost[]
+  validations          Validation[]
+  proofAttachments     ProofAttachment[]
+  reports              Report[]
+  contextAttachments   ContextAttachment[]
+  followedColleges     FollowedCollege[]
+  watchedThreads       WatchedThread[]
+  savedExperiences     SavedExperience[]
+  savedInsights        SavedInsight[]
+  contextActions       ContextAction[]
+}
+
+model College {
+  id               String            @id @default(cuid())
+  name             String
+  slug             String            @unique
+  city             String
+  state            String
+  country          String            @default("India")
+  officialWebsite  String
+  affiliation      String
+  courses          String[]
+  feeRange         String?
+  admissionModes   String[]
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  users            User[]
+  questions        Question[]
+  answers          Answer[]
+  experiences      ExperiencePost[]
+  claimRealities   ClaimReality[]
+  whatWorksPosts   WhatWorksPost[]
+  followedColleges FollowedCollege[]
+}
+
+model Question {
+  id        String         @id @default(cuid())
+  collegeId String
+  userId    String
+  title     String
+  body      String
+  category  String
+  branch    String?
+  branchYearContext String?
+  topicTags String[] @default([])
+  freshnessLabel String?
+  participantContext String?
+  contextBadge String?
+  currentStudentSignal String?
+  reconfirmationSignal String?
+  speakerContext String?
+  trustLabel String?
+  lastActiveAt DateTime @default(now())
+  status    QuestionStatus @default(OPEN)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  college   College        @relation(fields: [collegeId], references: [id])
+  user      User           @relation(fields: [userId], references: [id])
+  answers   Answer[]
+  watchedBy WatchedThread[]
+}
+
+model Answer {
+  id                 String           @id @default(cuid())
+  questionId         String
+  collegeId          String
+  userId             String
+  body               String
+  branchContext      String?
+  batchContext       String?
+  studentTypeContext String
+  speakerContext     String?
+  trustLabel          String?
+  contextBadge       String?
+  communityContext   String?
+  communityCounts    Json?
+  moderationStatus   ModerationStatus @default(VISIBLE)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  question           Question         @relation(fields: [questionId], references: [id])
+  college            College          @relation(fields: [collegeId], references: [id])
+  user               User             @relation(fields: [userId], references: [id])
+}
+
+model ExperiencePost {
+  id                 String           @id @default(cuid())
+  collegeId          String
+  userId             String
+  title              String
+  body               String
+  category           String
+  branch             String?
+  batch              String?
+  yearOrBatch        String?
+  hostelStatus       String?
+  tags               String[]         @default([])
+  whatWorked         String
+  whatDidNotWork     String
+  advice             String
+  wishIKnewEarlier   String
+  actuallyWorksHere  String
+  whoThisMayHelp     String
+  communityContext   String
+  studentContext     String
+  freshnessLabel     String?
+  contextBadge       String?
+  recentChanges      String?
+  proofStatus        String
+  moderationStatus   ModerationStatus @default(VISIBLE)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  college            College          @relation(fields: [collegeId], references: [id])
+  user               User             @relation(fields: [userId], references: [id])
+  savedBy            SavedExperience[]
+}
+
+model ClaimReality {
+  id             String      @id @default(cuid())
+  collegeId      String
+  claim          String
+  studentReality String
+  category       String
+  status         ClaimStatus
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  college        College     @relation(fields: [collegeId], references: [id])
+}
+
+model WhatWorksPost {
+  id        String   @id @default(cuid())
+  collegeId String
+  userId    String
+  title     String
+  body      String
+  category  String
+  branch    String?
+  practicalAdvice String?
+  whyItHelps      String?
+  whoShouldKnow   String?
+  studentContext  String?
+  tags            String[] @default([])
+  freshnessLabel String?
+  contextBadge   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  college   College  @relation(fields: [collegeId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  savedBy   SavedInsight[]
+}
+
+model Validation {
+  id                String               @id @default(cuid())
+  targetType        ValidationTargetType
+  targetId          String
+  userId            String
+  validationType    ValidationType
+  optionalComment   String?
+  createdAt         DateTime             @default(now())
+  user              User                 @relation(fields: [userId], references: [id])
+}
+
+model ContextAction {
+  id          String   @id @default(cuid())
+  targetType  String
+  targetId    String
+  actionType  String
+  userId      String
+  userContext String?
+  userRole    String?
+  createdAt   DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@unique([targetType, targetId, actionType, userId])
+}
+
+model ProofAttachment {
+  id               String           @id @default(cuid())
+  targetType       String
+  targetId         String
+  userId           String
+  fileUrl          String
+  fileType         String
+  visibility       ProofVisibility
+  moderationStatus ModerationStatus @default(VISIBLE)
+  privacyChecked   Boolean          @default(false)
+  createdAt        DateTime         @default(now())
+  user             User             @relation(fields: [userId], references: [id])
+}
+
+model ContextAttachment {
+  id               String                            @id @default(cuid())
+  targetType       ContextAttachmentTargetType
+  targetId         String
+  userId           String
+  storageKey       String
+  fileType         String
+  visibility       ContextAttachmentVisibility       @default(MODERATOR_ONLY)
+  moderationStatus ContextAttachmentModerationStatus @default(PENDING)
+  privacyChecked   Boolean                           @default(false)
+  caption          String?
+  moderatorNote    String?
+  createdAt        DateTime                          @default(now())
+  updatedAt        DateTime                          @updatedAt
+  user             User                              @relation(fields: [userId], references: [id])
+
+  @@index([targetType, targetId])
+}
+
+model Report {
+  id               String       @id @default(cuid())
+  targetType       String
+  targetId         String
+  reporterUserId   String
+  reason           String
+  details          String?
+  status           ReportStatus @default(PENDING)
+  moderatorNotes   String?
+  createdAt        DateTime     @default(now())
+  reporter         User         @relation(fields: [reporterUserId], references: [id])
+}
+
+model FollowedCollege {
+  id        String   @id @default(cuid())
+  userId    String
+  collegeId String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  college   College  @relation(fields: [collegeId], references: [id])
+
+  @@unique([userId, collegeId])
+}
+
+model WatchedThread {
+  id        String   @id @default(cuid())
+  userId    String
+  threadId  String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  thread    Question @relation(fields: [threadId], references: [id])
+
+  @@unique([userId, threadId])
+}
+
+model SavedExperience {
+  id           String         @id @default(cuid())
+  userId       String
+  experienceId String
+  createdAt    DateTime       @default(now())
+  user         User           @relation(fields: [userId], references: [id])
+  experience   ExperiencePost @relation(fields: [experienceId], references: [id])
+
+  @@unique([userId, experienceId])
+}
+
+model SavedInsight {
+  id        String        @id @default(cuid())
+  userId    String
+  insightId String
+  createdAt DateTime      @default(now())
+  user      User          @relation(fields: [userId], references: [id])
+  insight   WhatWorksPost @relation(fields: [insightId], references: [id])
+
+  @@unique([userId, insightId])
+}
