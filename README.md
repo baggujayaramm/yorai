@@ -4,7 +4,9 @@
 
 Yorai is a discussion-first college discovery platform for understanding college life through fresh student context. It helps aspirants explore colleges through live student threads, current-student and alumni experiences, practical guidance, and "what actually works" insights.
 
-Yorai is not a ratings-first review site, ranking engine, or generic college directory. The product is built around useful conversations, context, freshness, and respectful student-to-student guidance.
+Most college discovery tools flatten student life into rankings, cutoffs, lists, and polished claims. Yorai starts somewhere more human: with students who have actually lived the campus, branch, hostel, club, lab, placement, and first-year reality.
+
+Yorai is not a ratings-first review site, ranking engine, complaint board, or generic college directory. The product is built around useful conversations, context, freshness, and respectful student-to-student guidance.
 
 ## Core Principles
 
@@ -13,6 +15,12 @@ Yorai is not a ratings-first review site, ranking engine, or generic college dir
 - **Freshness-focused:** current context is prioritized, and older experiences are clearly marked.
 - **No rating drama:** no stars, rankings, or review-score framing.
 - **Community context over anonymous dumping:** students can confirm, update, challenge, or add branch-specific context.
+
+## Why Yorai Exists
+
+College decisions are personal, expensive, and often made with incomplete information. A brochure can tell students what a college wants to be known for. Yorai is designed to help students understand what life there actually feels like, what changes by branch or batch, and what practical choices help once they arrive.
+
+The long-term vision is a student network that goes beyond choosing a college: a place where students across institutions can find context, collaborators, projects, events, hackathons, clubs, and opportunities.
 
 ## Current Features
 
@@ -84,6 +92,8 @@ npm run build
 ## Seed Data
 
 The included seed data is fictional and exists only to support local development and private preview testing. It should not be treated as real college, student, or institutional data.
+
+Yorai is intentionally seeded with fictional colleges so the product can be tested without implying association with real institutions or exposing real student identities.
 
 ## Project Status
 
