@@ -17,11 +17,14 @@ import {
 
 const prisma = new PrismaClient();
 
+/**
+ * Converts seed date strings into valid JavaScript Date objects.
+ */
 function toDateTime(
   value: Date | string | undefined,
   fieldName: string,
 ): Date | undefined {
-  if (!value) {
+  if (value === undefined) {
     return undefined;
   }
 
@@ -33,335 +36,438 @@ function toDateTime(
     ? `${value}T00:00:00.000Z`
     : value;
 
-  const date = new Date(normalizedValue);
+  const parsedDate = new Date(normalizedValue);
 
-  if (Number.isNaN(date.getTime())) {
+  if (Number.isNaN(parsedDate.getTime())) {
     throw new Error(
       `Invalid seed DateTime for ${fieldName}: ${value}`,
     );
   }
 
-  return date;
+  return parsedDate;
 }
 
-function createCollegeSeedData(): Prisma.CollegeCreateManyInput[] {
-  return colleges.map(
-    (college) =>
-      ({
-        ...college,
-      }) as Prisma.CollegeCreateManyInput,
+/**
+ * Converts Yorai seed roles into Prisma-generated UserRole values.
+ *
+ * The seed users currently contain:
+ * ASPIRANT | CURRENT_STUDENT | ALUMNI
+ */
+function toPrismaUserRole(
+  role: (typeof users)[number]['role'],
+): PrismaUserRole {
+  switch (role) {
+    case 'ASPIRANT':
+      return PrismaUserRole.ASPIRANT;
+
+    case 'CURRENT_STUDENT':
+      return PrismaUserRole.CURRENT_STUDENT;
+
+    case 'ALUMNI':
+      return PrismaUserRole.ALUMNI;
+  }
+
+  throw new Error(
+    `Unsupported Yorai seed user role: ${String(role)}`,
   );
 }
 
-function createUserSeedData(): Prisma.UserCreateManyInput[] {
-  return users.map((user) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    anonymousDisplayName: user.anonymousDisplayName,
+async function seedColleges(): Promise<void> {
+  for (const college of colleges) {
+    await prisma.college.upsert({
+      where: {
+        id: college.id,
+      },
 
-    /*
-     * The role in src/lib/seed-data represents student context:
-     * ASPIRANT | CURRENT_STUDENT | ALUMNI.
-     *
-     * Prisma UserRole represents account permissions:
-     * USER | MODERATOR | ADMIN.
-     *
-     * They must not be mapped to each other.
-     */
-    role: PrismaUserRole.USER,
+      update: {},
 
-    verificationLevel: user.verificationLevel,
-
-    collegeId: user.collegeId ?? null,
-    branch: user.branch ?? null,
-    batch: user.batch ?? null,
-    year: user.year ?? null,
-    hostelStatus: user.hostelStatus ?? null,
-    interestedBranch: user.interestedBranch ?? null,
-  }));
+      create: college,
+    });
+  }
 }
 
-function createQuestionSeedData(): Prisma.QuestionCreateManyInput[] {
-  return questions.map((question) => ({
-    id: question.id,
-    collegeId: question.collegeId,
-    userId: question.userId,
+async function seedUsers(): Promise<void> {
+  for (const user of users) {
+    const userData: Prisma.UserUncheckedCreateInput = {
+      id: user.id,
 
-    title: question.title,
-    body: question.body,
+      name: user.name,
+      email: user.email,
 
-    category: question.category,
-    branch: question.branch,
-    branchYearContext: question.branch,
+      anonymousDisplayName: user.anonymousDisplayName,
 
-    topicTags: question.topicTags,
+      role: toPrismaUserRole(user.role),
 
-    freshnessLabel: question.freshnessLabel,
-    participantContext: question.participantContext,
-    contextBadge: question.contextBadge,
+      verificationLevel: user.verificationLevel,
 
-    currentStudentSignal: question.currentStudentSignal,
-    reconfirmationSignal: question.reconfirmationSignal,
+      collegeId: user.collegeId ?? null,
 
-    speakerContext: question.speakerContext,
-    trustLabel: question.trustLabel,
+      branch: user.branch ?? null,
+      batch: user.batch ?? null,
+      year: user.year ?? null,
 
-    lastActiveAt: toDateTime(
-      question.lastActiveDate,
-      `question.${question.id}.lastActiveDate`,
-    ),
+      hostelStatus: user.hostelStatus ?? null,
 
-    createdAt: toDateTime(
-      question.lastActiveDate,
-      `question.${question.id}.createdAt`,
-    ),
+      interestedBranch: user.interestedBranch ?? null,
+    };
 
-    status:
-      question.status as Prisma.QuestionCreateManyInput['status'],
-  }));
+    await prisma.user.upsert({
+      where: {
+        id: user.id,
+      },
+
+      update: {},
+
+      create: userData,
+    });
+  }
 }
 
-function createAnswerSeedData(): Prisma.AnswerCreateManyInput[] {
-  return answers.map((answer) => ({
-    id: answer.id,
+async function seedQuestions(): Promise<void> {
+  for (const question of questions) {
+    const questionData: Prisma.QuestionUncheckedCreateInput = {
+      id: question.id,
 
-    questionId: answer.questionId,
-    collegeId: answer.collegeId,
-    userId: answer.userId,
+      collegeId: question.collegeId,
+      userId: question.userId,
 
-    body: answer.body,
+      title: question.title,
+      body: question.body,
 
-    branchContext: answer.branchContext,
-    batchContext: answer.batchContext,
-    studentTypeContext: answer.studentTypeContext,
+      category: question.category,
 
-    speakerContext: answer.speakerContext,
-    trustLabel: answer.trustLabel,
-    contextBadge: answer.contextBadge,
+      branch: question.branch,
+      branchYearContext: question.branch,
 
-    communityContext: answer.communityContext,
+      topicTags: question.topicTags,
 
-    communityCounts:
-      answer.communityCounts as
-        | Prisma.InputJsonValue
-        | undefined,
+      freshnessLabel: question.freshnessLabel,
 
-    createdAt: toDateTime(
-      answer.createdAt,
-      `answer.${answer.id}.createdAt`,
-    ),
-  }));
+      participantContext: question.participantContext,
+
+      contextBadge: question.contextBadge,
+
+      currentStudentSignal:
+        question.currentStudentSignal,
+
+      reconfirmationSignal:
+        question.reconfirmationSignal,
+
+      speakerContext: question.speakerContext,
+
+      trustLabel: question.trustLabel,
+
+      lastActiveAt: toDateTime(
+        question.lastActiveDate,
+        `question.${question.id}.lastActiveDate`,
+      ),
+
+      createdAt: toDateTime(
+        question.lastActiveDate,
+        `question.${question.id}.createdAt`,
+      ),
+
+      status:
+        question.status as
+          Prisma.QuestionUncheckedCreateInput['status'],
+    };
+
+    await prisma.question.upsert({
+      where: {
+        id: question.id,
+      },
+
+      update: {},
+
+      create: questionData,
+    });
+  }
 }
 
-function createExperienceSeedData(): Prisma.ExperiencePostCreateManyInput[] {
-  return experiences.map((experience) => ({
-    id: experience.id,
+async function seedAnswers(): Promise<void> {
+  for (const answer of answers) {
+    const answerData: Prisma.AnswerUncheckedCreateInput = {
+      id: answer.id,
 
-    collegeId: experience.collegeId,
-    userId: experience.userId,
+      questionId: answer.questionId,
+      collegeId: answer.collegeId,
+      userId: answer.userId,
 
-    title: experience.title,
-    body: experience.body,
+      body: answer.body,
 
-    category: experience.category,
+      branchContext: answer.branchContext,
 
-    branch: experience.branch,
-    batch: experience.batch,
-    yearOrBatch: experience.yearOrBatch,
-    hostelStatus: experience.hostelStatus,
+      batchContext: answer.batchContext,
 
-    tags: experience.tags ?? [],
+      studentTypeContext:
+        answer.studentTypeContext,
 
-    whatWorked: experience.whatWorked,
-    whatDidNotWork: experience.whatDidNotWork,
+      speakerContext: answer.speakerContext,
 
-    advice: experience.advice,
-    wishIKnewEarlier: experience.wishIKnewEarlier,
+      trustLabel: answer.trustLabel,
 
-    actuallyWorksHere: experience.actuallyWorksHere,
-    whoThisMayHelp: experience.whoThisMayHelp,
+      contextBadge: answer.contextBadge,
 
-    communityContext: experience.communityContext,
-    studentContext: experience.studentContext,
+      communityContext:
+        answer.communityContext,
 
-    freshnessLabel: experience.freshnessLabel,
-    contextBadge: experience.contextBadge,
+      communityCounts:
+        answer.communityCounts as
+          | Prisma.InputJsonValue
+          | undefined,
 
-    recentChanges: experience.recentChanges,
+      createdAt: toDateTime(
+        answer.createdAt,
+        `answer.${answer.id}.createdAt`,
+      ),
+    };
 
-    proofStatus:
-      experience.proofStatus as
-        Prisma.ExperiencePostCreateManyInput['proofStatus'],
-  }));
+    await prisma.answer.upsert({
+      where: {
+        id: answer.id,
+      },
+
+      update: {},
+
+      create: answerData,
+    });
+  }
 }
 
-function createClaimRealitySeedData(): Prisma.ClaimRealityCreateManyInput[] {
-  return claimRealities.map((claim) => ({
-    id: claim.id,
+async function seedExperiences(): Promise<void> {
+  for (const experience of experiences) {
+    const experienceData: Prisma.ExperiencePostUncheckedCreateInput =
+      {
+        id: experience.id,
 
-    collegeId: claim.collegeId,
+        collegeId: experience.collegeId,
+        userId: experience.userId,
 
-    claim: claim.claim,
-    studentReality: claim.studentReality,
+        title: experience.title,
+        body: experience.body,
 
-    category: claim.category,
+        category: experience.category,
 
-    status:
-      claim.status as
-        Prisma.ClaimRealityCreateManyInput['status'],
-  }));
+        branch: experience.branch,
+
+        batch: experience.batch,
+
+        yearOrBatch:
+          experience.yearOrBatch,
+
+        hostelStatus:
+          experience.hostelStatus,
+
+        tags: experience.tags ?? [],
+
+        whatWorked:
+          experience.whatWorked,
+
+        whatDidNotWork:
+          experience.whatDidNotWork,
+
+        advice: experience.advice,
+
+        wishIKnewEarlier:
+          experience.wishIKnewEarlier,
+
+        actuallyWorksHere:
+          experience.actuallyWorksHere,
+
+        whoThisMayHelp:
+          experience.whoThisMayHelp,
+
+        communityContext:
+          experience.communityContext,
+
+        studentContext:
+          experience.studentContext,
+
+        freshnessLabel:
+          experience.freshnessLabel,
+
+        contextBadge:
+          experience.contextBadge,
+
+        recentChanges:
+          experience.recentChanges,
+
+        proofStatus:
+          experience.proofStatus as
+            Prisma.ExperiencePostUncheckedCreateInput['proofStatus'],
+      };
+
+    await prisma.experiencePost.upsert({
+      where: {
+        id: experience.id,
+      },
+
+      update: {},
+
+      create: experienceData,
+    });
+  }
 }
 
-function createWhatWorksSeedData(): Prisma.WhatWorksPostCreateManyInput[] {
-  return whatWorksPosts.map((post) => ({
-    id: post.id,
+async function seedClaimRealities(): Promise<void> {
+  for (const claim of claimRealities) {
+    const claimData: Prisma.ClaimRealityUncheckedCreateInput =
+      {
+        id: claim.id,
 
-    collegeId: post.collegeId,
-    userId: post.userId,
+        collegeId: claim.collegeId,
 
-    title: post.title,
-    body: post.body,
+        claim: claim.claim,
 
-    category: post.category,
+        studentReality:
+          claim.studentReality,
 
-    branch: post.branch,
+        category: claim.category,
 
-    practicalAdvice: post.practicalAdvice,
-    whyItHelps: post.whyItHelps,
-    whoShouldKnow: post.whoShouldKnow,
+        status:
+          claim.status as
+            Prisma.ClaimRealityUncheckedCreateInput['status'],
+      };
 
-    studentContext: post.studentContext,
+    await prisma.claimReality.upsert({
+      where: {
+        id: claim.id,
+      },
 
-    tags: post.tags ?? [],
+      update: {},
 
-    freshnessLabel: post.freshnessLabel,
-    contextBadge: post.contextBadge,
-  }));
+      create: claimData,
+    });
+  }
 }
 
-function createValidationSeedData(): Prisma.ValidationCreateManyInput[] {
-  return validations.map((validation) => ({
-    id: validation.id,
+async function seedWhatWorksPosts(): Promise<void> {
+  for (const post of whatWorksPosts) {
+    const postData: Prisma.WhatWorksPostUncheckedCreateInput =
+      {
+        id: post.id,
 
-    targetType:
-      validation.targetType as
-        Prisma.ValidationCreateManyInput['targetType'],
+        collegeId: post.collegeId,
+        userId: post.userId,
 
-    targetId: validation.targetId,
-    userId: validation.userId,
+        title: post.title,
+        body: post.body,
 
-    validationType:
-      validation.validationType as
-        Prisma.ValidationCreateManyInput['validationType'],
-  }));
+        category: post.category,
+
+        branch: post.branch,
+
+        practicalAdvice:
+          post.practicalAdvice,
+
+        whyItHelps:
+          post.whyItHelps,
+
+        whoShouldKnow:
+          post.whoShouldKnow,
+
+        studentContext:
+          post.studentContext,
+
+        tags: post.tags ?? [],
+
+        freshnessLabel:
+          post.freshnessLabel,
+
+        contextBadge:
+          post.contextBadge,
+      };
+
+    await prisma.whatWorksPost.upsert({
+      where: {
+        id: post.id,
+      },
+
+      update: {},
+
+      create: postData,
+    });
+  }
 }
 
-async function seedColleges(): Promise<number> {
-  const result = await prisma.college.createMany({
-    data: createCollegeSeedData(),
-    skipDuplicates: true,
-  });
+async function seedValidations(): Promise<void> {
+  for (const validation of validations) {
+    const validationData: Prisma.ValidationUncheckedCreateInput =
+      {
+        id: validation.id,
 
-  return result.count;
-}
+        targetType:
+          validation.targetType as
+            Prisma.ValidationUncheckedCreateInput['targetType'],
 
-async function seedUsers(): Promise<number> {
-  const result = await prisma.user.createMany({
-    data: createUserSeedData(),
-    skipDuplicates: true,
-  });
+        targetId: validation.targetId,
 
-  return result.count;
-}
+        userId: validation.userId,
 
-async function seedQuestions(): Promise<number> {
-  const result = await prisma.question.createMany({
-    data: createQuestionSeedData(),
-    skipDuplicates: true,
-  });
+        validationType:
+          validation.validationType as
+            Prisma.ValidationUncheckedCreateInput['validationType'],
+      };
 
-  return result.count;
-}
+    await prisma.validation.upsert({
+      where: {
+        id: validation.id,
+      },
 
-async function seedAnswers(): Promise<number> {
-  const result = await prisma.answer.createMany({
-    data: createAnswerSeedData(),
-    skipDuplicates: true,
-  });
+      update: {},
 
-  return result.count;
-}
-
-async function seedExperiences(): Promise<number> {
-  const result = await prisma.experiencePost.createMany({
-    data: createExperienceSeedData(),
-    skipDuplicates: true,
-  });
-
-  return result.count;
-}
-
-async function seedClaimRealities(): Promise<number> {
-  const result = await prisma.claimReality.createMany({
-    data: createClaimRealitySeedData(),
-    skipDuplicates: true,
-  });
-
-  return result.count;
-}
-
-async function seedWhatWorksPosts(): Promise<number> {
-  const result = await prisma.whatWorksPost.createMany({
-    data: createWhatWorksSeedData(),
-    skipDuplicates: true,
-  });
-
-  return result.count;
-}
-
-async function seedValidations(): Promise<number> {
-  const result = await prisma.validation.createMany({
-    data: createValidationSeedData(),
-    skipDuplicates: true,
-  });
-
-  return result.count;
+      create: validationData,
+    });
+  }
 }
 
 async function main(): Promise<void> {
-  console.log('Starting Yorai fictional seed...');
+  console.log(
+    'Starting Yorai fictional seed...',
+  );
 
-  const collegesCreated = await seedColleges();
-  console.log(`Colleges created: ${collegesCreated}`);
+  console.log('Seeding colleges...');
+  await seedColleges();
 
-  const usersCreated = await seedUsers();
-  console.log(`Users created: ${usersCreated}`);
+  console.log('Seeding users...');
+  await seedUsers();
 
-  const questionsCreated = await seedQuestions();
-  console.log(`Questions created: ${questionsCreated}`);
+  console.log('Seeding questions...');
+  await seedQuestions();
 
-  const answersCreated = await seedAnswers();
-  console.log(`Answers created: ${answersCreated}`);
+  console.log('Seeding answers...');
+  await seedAnswers();
 
-  const experiencesCreated = await seedExperiences();
-  console.log(`Experiences created: ${experiencesCreated}`);
+  console.log(
+    'Seeding student experiences...',
+  );
+  await seedExperiences();
 
-  const claimsCreated = await seedClaimRealities();
-  console.log(`Claim realities created: ${claimsCreated}`);
+  console.log(
+    'Seeding claim realities...',
+  );
+  await seedClaimRealities();
 
-  const whatWorksCreated = await seedWhatWorksPosts();
-  console.log(`What-works posts created: ${whatWorksCreated}`);
+  console.log(
+    'Seeding what-works posts...',
+  );
+  await seedWhatWorksPosts();
 
-  const validationsCreated = await seedValidations();
-  console.log(`Validations created: ${validationsCreated}`);
+  console.log('Seeding validations...');
+  await seedValidations();
 
-  console.log('Yorai fictional seed completed successfully.');
+  console.log(
+    'Yorai fictional seed completed successfully.',
+  );
 }
 
 main()
   .catch((error: unknown) => {
-    console.error('Yorai seed failed:', error);
+    console.error(
+      'Yorai seed failed:',
+      error,
+    );
+
     process.exitCode = 1;
   })
   .finally(async () => {
