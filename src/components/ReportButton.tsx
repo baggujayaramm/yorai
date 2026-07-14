@@ -13,15 +13,24 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const dialogRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    const trigger = triggerRef.current;
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setOpen(false);
+      if (event.key !== 'Tab' || !dialogRef.current) return;
+      const focusable = dialogRef.current.querySelectorAll<HTMLElement>('button:not([disabled]), select, textarea, input, a[href], [tabindex]:not([tabindex="-1"])');
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
     };
     dialogRef.current?.focus();
     document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    return () => { document.removeEventListener('keydown', onKeyDown); trigger?.focus(); };
   }, [open]);
 
   const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -49,11 +58,13 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
   return (
     <>
       <button
+        aria-haspopup="dialog"
         className="rounded-full px-2 py-1 text-xs font-semibold text-ink/50 hover:bg-mist"
         onClick={() => {
           setSubmitted(false);
           setOpen(true);
         }}
+        ref={triggerRef}
         type="button"
       >
         Report concern
@@ -61,27 +72,29 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
 
       {open && (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/40 px-3 py-3 backdrop-blur-xl sm:items-center"
+          className="fixed inset-0 z-50 flex items-end justify-center bg-ink/50 px-3 py-3 backdrop-blur-xl sm:items-center dark:bg-black/58"
           onMouseDown={(event) => {
             if (event.target === event.currentTarget) setOpen(false);
           }}
           role="presentation"
         >
           <div
+            aria-labelledby="report-dialog-title"
+            aria-describedby="report-dialog-description"
             aria-modal="true"
-            className="w-full max-w-lg rounded-t-[2rem] border border-white/42 bg-surface/78 p-5 shadow-glass outline-none backdrop-blur-2xl dark:border-white/10 dark:bg-surface/66 sm:rounded-[2rem]"
+            className="elevated-dialog w-full max-w-lg rounded-t-[2rem] p-5 outline-none sm:rounded-[2rem]"
             ref={dialogRef}
             role="dialog"
             tabIndex={-1}
           >
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-lg font-semibold text-ink">Report concern</h2>
-                <p className="mt-2 text-sm leading-6 text-ink/65">
+                <h2 className="text-lg font-semibold text-ink" id="report-dialog-title">Report concern</h2>
+                <p className="mt-2 text-sm leading-6 text-ink/65" id="report-dialog-description">
                   Reports help keep Yorai useful and safe for students.
                 </p>
               </div>
-              <button className="rounded-full px-2 py-1 text-sm font-semibold text-ink/60 hover:bg-mist" onClick={() => setOpen(false)} type="button">
+              <button aria-label="Close report dialog" className="rounded-full px-2 py-1 text-sm font-semibold text-ink/60 hover:bg-mist" onClick={() => setOpen(false)} type="button">
                 Close
               </button>
             </div>
@@ -94,7 +107,7 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
               <form className="mt-5 grid gap-4" onSubmit={onSubmit}>
                 <label className="grid gap-2 text-sm font-semibold text-ink">
                   Reason
-                  <select className="rounded-xl border border-line bg-surface/82 px-3 py-3 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" name="reason">
+                  <select className="form-field rounded-xl px-3 py-3 font-normal" name="reason">
                     {reportReasons.map((reason) => (
                       <option key={reason}>{reason}</option>
                     ))}
@@ -102,12 +115,12 @@ export function ReportButton({ targetType, targetId }: ReportButtonProps) {
                 </label>
                 <label className="grid gap-2 text-sm font-semibold text-ink">
                   Optional details
-                  <textarea className="min-h-28 rounded-2xl border border-line bg-surface/82 px-3 py-3 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" name="details" placeholder="Add calm context for moderators." />
+                  <textarea className="form-field min-h-28 rounded-2xl px-3 py-3 font-normal" name="details" placeholder="Add calm context for moderators." />
                 </label>
                 <button className="button-primary px-5 py-3" type="submit">
                   Submit report
                 </button>
-                {error && <p className="text-sm font-semibold text-sun">{error}</p>}
+                {error && <p aria-live="assertive" className="text-sm font-semibold text-sun" role="alert">{error}</p>}
               </form>
             )}
           </div>

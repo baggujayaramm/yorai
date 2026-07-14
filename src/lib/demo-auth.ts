@@ -14,13 +14,22 @@ export function getDemoUsers() {
     .filter((user): user is User => Boolean(user));
 }
 
+export function isDemoAuthEnabled() {
+  return process.env.YORAI_DEMO_AUTH_ENABLED === 'true' && process.env.VERCEL_ENV !== 'production';
+}
+
 export async function getCurrentDemoUserId() {
+  if (!isDemoAuthEnabled()) return null;
   const store = await cookies();
   const value = store.get(DEMO_USER_COOKIE)?.value;
   return demoUserIds.includes(value as DemoUserId) ? (value as DemoUserId) : null;
 }
 
 export async function requireDemoUserId() {
+  if (!isDemoAuthEnabled()) {
+    throw new Error('Demo identity is disabled. Enable YORAI_DEMO_AUTH_ENABLED=true for private preview writes.');
+  }
+
   const userId = await getCurrentDemoUserId();
   if (!userId) {
     throw new Error('You need to choose a demo user before posting.');
@@ -45,6 +54,9 @@ export function formatPublicUserContext(user: {
   }
 
   if (user.role === 'MODERATOR') return 'Moderator';
+  if (user.role === 'ADMIN') return 'Admin';
+  if (user.role === 'COLLEGE_REP' || user.role === 'COLLEGE_REPRESENTATIVE') return 'College Representative · Factual metadata only';
+  if (user.role === 'USER') return 'Yorai user';
 
   return ['Current student', user.branch, user.year, user.hostelStatus].filter(Boolean).join(' · ');
 }
@@ -52,6 +64,7 @@ export function formatPublicUserContext(user: {
 export function trustLabelFromRole(role: string) {
   if (role === 'CURRENT_STUDENT') return 'Current student';
   if (role === 'ALUMNI') return 'Alumni';
-  if (role === 'MODERATOR') return 'Context added';
+  if (role === 'COLLEGE_REP' || role === 'COLLEGE_REPRESENTATIVE') return 'College representative';
+  if (role === 'MODERATOR' || role === 'ADMIN') return 'Context added';
   return 'Aspirant';
 }

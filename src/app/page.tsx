@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { CollegeCard } from '@/components/CollegeCard';
 import { SearchBar } from '@/components/SearchBar';
+import { featureEnabled } from '@/lib/release-controls';
 import { colleges } from '@/lib/seed-data';
 
 const chips = ['Computer Science', 'Pune', 'AI and ML', 'Hostel', 'BCA', 'Autonomous'];
@@ -25,8 +26,14 @@ const explanationCards = [
 ];
 
 const signalCards = ['Current students responding', 'Fresh context', 'Live student threads', 'What actually works'];
+const clarity = [
+  'Student-generated context is separate from official college information.',
+  'Freshness labels show when context is current, old, changed, or reconfirmed.',
+  'Yorai is not ratings, rankings, admissions prediction, or sponsored ordering.',
+];
 
-export default function HomePage() {
+export default async function HomePage() {
+  if (!await featureEnabled('public_browsing')) return <PublicBrowsingPaused />;
   return (
     <main>
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 sm:py-20">
@@ -86,6 +93,15 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <div className="content-solid rounded-3xl border border-line p-5">
+          <p className="text-sm font-semibold text-iris">Public launch clarity</p>
+          <div className="mt-3 grid gap-3 text-sm leading-6 text-ink/66 md:grid-cols-3">
+            {clarity.map((item) => <p key={item}>{item}</p>)}
+          </div>
+        </div>
+      </section>
+
       <section className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -101,6 +117,18 @@ export default function HomePage() {
             <CollegeCard college={college} key={college.id} />
           ))}
         </div>
+      </section>
+    </main>
+  );
+}
+
+function PublicBrowsingPaused() {
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <section className="liquid-glass-panel liquid-glass-strong rounded-3xl p-6">
+        <p className="text-sm font-semibold text-iris">Yorai launch controls</p>
+        <h1 className="mt-2 text-3xl font-semibold text-ink">Public browsing is temporarily paused</h1>
+        <p className="mt-3 text-sm leading-6 text-ink/65">Yorai is keeping student context private while launch settings are reviewed. Please check back soon.</p>
       </section>
     </main>
   );

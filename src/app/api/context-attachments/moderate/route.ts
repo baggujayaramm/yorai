@@ -1,26 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import type { ContextAttachmentModerationStatus, ContextAttachmentVisibility } from '@prisma/client';
-import { requireDemoUserId } from '@/lib/demo-auth';
+import { requireModeratorUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
+import { apiErrorResponse } from '@/lib/api-response';
+import { featureEnabled } from '@/lib/release-controls';
 
 const statuses = ['PENDING', 'APPROVED', 'REJECTED', 'NEEDS_REDACTION'];
 const visibilityOptions = ['MODERATOR_ONLY', 'SUMMARY_ONLY', 'PUBLIC_AFTER_REVIEW'];
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const userId = await requireDemoUserId();
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-
-    if (user.role !== 'MODERATOR') {
-      return NextResponse.json({ ok: false, error: 'Choose the Moderator demo user to review attachments.' }, { status: 403 });
-    }
+    if (!await featureEnabled('moderation_tools')) return NextResponse.json({ ok: false, error: 'Moderation tools are temporarily unavailable.' }, { status: 503 });
+    await requireModeratorUser();
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'Could not load attachments.' }, { status: 403 });
+    return apiErrorResponse(error, 'Could not load attachments.', request, 'moderation');
   }
 
   const attachments = await prisma.contextAttachment.findMany({
     orderBy: { createdAt: 'desc' },
     include: { user: { select: { anonymousDisplayName: true, role: true } } },
+    take: 50,
   });
 
   return NextResponse.json({
@@ -43,12 +42,8 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const userId = await requireDemoUserId();
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-
-    if (user.role !== 'MODERATOR') {
-      return NextResponse.json({ ok: false, error: 'Choose the Moderator demo user to review attachments.' }, { status: 403 });
-    }
+    if (!await featureEnabled('moderation_tools')) return NextResponse.json({ ok: false, error: 'Moderation tools are temporarily unavailable.' }, { status: 503 });
+    const moderator = await requireModeratorUser();
 
     const body = (await request.json()) as {
       id?: string;
@@ -65,17 +60,31 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ ok: false, error: 'Choose a valid visibility.' }, { status: 400 });
     }
 
-    const attachment = await prisma.contextAttachment.update({
-      where: { id: body.id },
-      data: {
-        moderationStatus: body.moderationStatus,
-        visibility: body.visibility,
-        moderatorNote: body.moderatorNote?.trim() || undefined,
-      },
+    const attachment = await prisma.$transaction(async (tx) => {
+      const updated = await tx.contextAttachment.update({
+        where: { id: body.id },
+        data: {
+          moderationStatus: body.moderationStatus,
+          visibility: body.visibility,
+          moderatorNote: body.moderatorNote?.trim() || undefined,
+        },
+      });
+
+      await tx.moderationAction.create({
+        data: {
+          actionType: `attachment:${body.moderationStatus}`,
+          moderatorId: moderator.id,
+          targetType: updated.targetType,
+          targetId: updated.targetId,
+          internalNote: body.moderatorNote?.trim() || undefined,
+        },
+      });
+
+      return updated;
     });
 
     return NextResponse.json({ ok: true, attachment });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'Could not update this yet. Try again.' }, { status: 400 });
+    return apiErrorResponse(error, 'Could not update this yet. Try again.', request, 'moderation');
   }
 }

@@ -3,9 +3,13 @@ import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
 import type { ContextAttachmentTargetType, ContextAttachmentVisibility } from '@prisma/client';
-import { requireDemoUserId } from '@/lib/demo-auth';
+import { getCurrentUser, requireCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { allowedAttachmentTypes, maxAttachmentBytes } from '@/lib/context-attachments';
+import { getModerationTarget } from '@/lib/moderation-targets';
+import { canModerate } from '@/lib/permissions';
+import { apiErrorResponse, ApiError } from '@/lib/api-response';
+import { assertBetaWriteAccess } from '@/lib/release-controls';
 
 const targetTypes = ['THREAD', 'REPLY', 'EXPERIENCE', 'INSIGHT'];
 const visibilityOptions = ['MODERATOR_ONLY', 'SUMMARY_ONLY', 'PUBLIC_AFTER_REVIEW'];
@@ -14,6 +18,7 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const targetType = searchParams.get('targetType') as ContextAttachmentTargetType | null;
   const targetId = searchParams.get('targetId');
+  const currentUser = await getCurrentUser();
 
   if (!targetType || !targetId || !targetTypes.includes(targetType)) {
     return NextResponse.json({ ok: true, attachments: [] });
@@ -22,11 +27,15 @@ export async function GET(request: NextRequest) {
   const attachments = await prisma.contextAttachment.findMany({
     where: { targetType, targetId },
     orderBy: { createdAt: 'desc' },
+    take: 50,
   });
 
   return NextResponse.json({
     ok: true,
-    attachments: attachments.map((attachment) => ({
+    attachments: attachments.map((attachment) => {
+      const privileged = currentUser?.id === attachment.userId || canModerate(currentUser?.role);
+      const publiclyApproved = attachment.visibility === 'PUBLIC_AFTER_REVIEW' && attachment.moderationStatus === 'APPROVED';
+      return {
       id: attachment.id,
       targetType: attachment.targetType,
       targetId: attachment.targetId,
@@ -34,15 +43,18 @@ export async function GET(request: NextRequest) {
       visibility: attachment.visibility,
       moderationStatus: attachment.moderationStatus,
       privacyChecked: attachment.privacyChecked,
-      caption: attachment.caption ?? undefined,
+      caption: privileged || publiclyApproved ? attachment.caption ?? undefined : undefined,
       createdAt: attachment.createdAt.toISOString(),
-    })),
+      privateReview: !publiclyApproved,
+    }; }),
   });
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireDemoUserId();
+    const user = await requireCurrentUser();
+    await assertBetaWriteAccess(user);
+    if (process.env.NODE_ENV === 'production') throw new ApiError(503, 'Context attachments are temporarily unavailable while private object storage is configured.', 'attachment_storage_unavailable');
     const form = await request.formData();
     const targetType = String(form.get('targetType') ?? '') as ContextAttachmentTargetType;
     const targetId = String(form.get('targetId') ?? '').trim();
@@ -54,6 +66,8 @@ export async function POST(request: NextRequest) {
     if (!targetTypes.includes(targetType) || !targetId) {
       return NextResponse.json({ ok: false, error: 'Missing attachment target.' }, { status: 400 });
     }
+    const target = await getModerationTarget(prisma, targetType, targetId);
+    if (!target || target.userId !== user.id) return NextResponse.json({ ok: false, error: 'You can attach context only to your own contribution.' }, { status: 403 });
 
     if (!visibilityOptions.includes(visibility)) {
       return NextResponse.json({ ok: false, error: 'Choose a safe visibility option.' }, { status: 400 });
@@ -86,7 +100,7 @@ export async function POST(request: NextRequest) {
       data: {
         targetType,
         targetId,
-        userId,
+        userId: user.id,
         storageKey,
         fileType: file.type,
         visibility,
@@ -118,6 +132,6 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'Could not save this yet. Try again.' }, { status: 400 });
+    return apiErrorResponse(error, 'Could not save this yet. Try again.', request, 'context-attachments');
   }
 }

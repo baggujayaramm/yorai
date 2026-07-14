@@ -18,6 +18,15 @@ export function CollegeProfileHeader({ college }: { college: College }) {
             <a className="mt-2 inline-block text-sm font-semibold text-iris" href={college.officialWebsite}>
               College source link
             </a>
+            <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
+              {college.shortName && <span className="soft-badge">{college.shortName}</span>}
+              {college.institutionType && <span className="soft-badge">{college.institutionType}</span>}
+              {college.ownershipType && <span className="soft-badge">{college.ownershipType}</span>}
+              {college.establishedYear && <span className="soft-badge">Established {college.establishedYear}</span>}
+              {college.accreditation && <span className="soft-badge">{college.accreditation}</span>}
+              {college.dataOrigin === 'IMPORTED' && <span className="soft-badge">Source tracked</span>}
+              {college.dataOrigin === 'FICTIONAL_DEMO' && <span className="soft-badge">Fictional demo college</span>}
+            </div>
           </div>
           <div className="flex flex-wrap gap-3">
             <PersonalActionButton targetType="college" targetId={college.id} label="Follow" activeLabel="Following" />

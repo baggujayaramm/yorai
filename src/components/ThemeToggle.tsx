@@ -27,6 +27,7 @@ export function ThemeToggle() {
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
+    document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
   }, [dark]);
 
   const toggleTheme = () => {
@@ -38,6 +39,7 @@ export function ThemeToggle() {
   return (
     <button
       aria-pressed={dark}
+      aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
       className="rounded border border-white/50 bg-surface/72 px-3 py-2 text-sm font-semibold text-ink shadow-soft backdrop-blur-xl transition hover:border-iris/55 hover:text-iris focus:outline-none focus:ring-4 focus:ring-iris/20 dark:border-white/10"
       onClick={toggleTheme}
       type="button"

@@ -1,8 +1,10 @@
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { CreateThreadForm } from '@/components/ThreadForms';
-import { getCollegeBySlug } from '@/lib/data';
+import { getCollegeBySlugWithDb } from '@/lib/data';
 import { colleges } from '@/lib/seed-data';
+
+export const dynamic = 'force-dynamic';
 
 type NewThreadPageProps = {
   params: Promise<{ slug: string }>;
@@ -14,7 +16,7 @@ export function generateStaticParams() {
 
 export default async function NewThreadPage({ params }: NewThreadPageProps) {
   const { slug } = await params;
-  const college = getCollegeBySlug(slug);
+  const college = await getCollegeBySlugWithDb(slug);
 
   if (!college) {
     notFound();

@@ -8,17 +8,35 @@ datasource db {
 }
 
 enum UserRole {
+  USER
   ASPIRANT
   CURRENT_STUDENT
   ALUMNI
   MODERATOR
+  ADMIN
   COLLEGE_REP
+  COLLEGE_REPRESENTATIVE
+}
+
+enum ProfileVisibility {
+  PUBLIC_CONTEXT
+  LIMITED_CONTEXT
+  PRIVATE
+}
+
+enum VerificationStatus {
+  UNVERIFIED
+  CONTEXT_ADDED
+  COMMUNITY_CONFIRMED
+  MODERATOR_CONFIRMED
 }
 
 enum QuestionStatus {
   OPEN
+  ACTIVE
   ANSWERED
   CLOSED
+  ARCHIVED
   FLAGGED
 }
 
@@ -65,6 +83,10 @@ enum ProofVisibility {
 }
 
 enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
   PENDING
   REVIEWED
   ACTIONED
@@ -91,90 +113,427 @@ enum ContextAttachmentModerationStatus {
   NEEDS_REDACTION
 }
 
+enum CollegeRecordStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CollegeDataOrigin {
+  FICTIONAL_DEMO
+  IMPORTED
+  ADMIN_CREATED
+}
+
+enum ImportBatchStatus {
+  DRY_RUN
+  COMPLETED
+  COMPLETED_WITH_ERRORS
+  FAILED
+}
+
+enum NotificationType {
+  THREAD_REPLY
+  THREAD_STATUS_CHANGED
+  THREAD_RECONFIRMED
+  THREAD_NEEDS_CURRENT_CONTEXT
+  EXPERIENCE_COMMENT
+  COMMUNITY_CONTEXT_ADDED
+  FOLLOWED_COLLEGE_NEW_THREAD
+  FOLLOWED_COLLEGE_NEW_EXPERIENCE
+  SAVED_CONTENT_UPDATED
+  REPORT_STATUS_UPDATED
+  MODERATION_NOTICE
+  PROFILE_CONTEXT_UPDATE
+}
+
+enum NotificationTargetType {
+  THREAD
+  REPLY
+  EXPERIENCE
+  INSIGHT
+  COLLEGE
+  REPORT
+  PROFILE
+  MODERATION
+}
+
+enum ContentRiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum ContentVisibility {
+  VISIBLE
+  UNDER_REVIEW
+  HIDDEN
+  REMOVED
+}
+
+enum WarningSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RestrictionType {
+  POSTING
+  REPLYING
+  REPORTING
+}
+
+enum AppealStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  REJECTED
+}
+
+enum BetaAccessStatus {
+  INVITED
+  ACTIVE
+  WAITLISTED
+  SUSPENDED
+  EXPIRED
+}
+
+enum WaitlistStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  INVITED
+}
+
+enum FeedbackCategory {
+  BUG
+  USABILITY
+  FEATURE_SUGGESTION
+  CONTENT_ISSUE
+  COLLEGE_DATA_ISSUE
+  MODERATION_CONCERN
+  OTHER
+}
+
+enum FeedbackStatus {
+  NEW
+  TRIAGED
+  PLANNED
+  IN_PROGRESS
+  RESOLVED
+  DECLINED
+}
+
+enum AnnouncementAudience {
+  ALL_USERS
+  BETA_USERS
+  MODERATORS
+  ADMINS
+}
+
+enum LaunchMode {
+  CLOSED_BETA
+  INVITE_ONLY
+  LIMITED_PUBLIC
+  PUBLIC
+}
+
+enum CollegeClaimRequestStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  REVOKED
+}
+
+enum OfficialCorrectionStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  NEEDS_SOURCE
+}
+
+enum PolicyType {
+  TERMS
+  PRIVACY
+  COMMUNITY_GUIDELINES
+  CONTENT_POLICY
+  DATA_CORRECTION
+  COLLEGE_REPRESENTATIVE
+  ACCOUNT_SUSPENSION
+}
+
+enum DataExportStatus {
+  REQUESTED
+  READY
+  FAILED
+}
+
+enum AccountDeletionStatus {
+  REQUESTED
+  COOLING_OFF
+  CANCELLED
+  COMPLETED
+}
+
 model User {
-  id                   String             @id @default(cuid())
-  name                 String
-  email                String             @unique
-  anonymousDisplayName String?
-  role                 UserRole
-  verificationLevel    Int                @default(1)
-  collegeId            String?
-  branch               String?
-  batch                String?
-  year                 String?
-  hostelStatus         String?
-  interestedBranch     String?
-  trustScore           Int                @default(0)
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
-  college              College?           @relation(fields: [collegeId], references: [id])
-  questions            Question[]
-  answers              Answer[]
-  experiences          ExperiencePost[]
-  whatWorksPosts       WhatWorksPost[]
-  validations          Validation[]
-  proofAttachments     ProofAttachment[]
-  reports              Report[]
-  contextAttachments   ContextAttachment[]
-  followedColleges     FollowedCollege[]
-  watchedThreads       WatchedThread[]
-  savedExperiences     SavedExperience[]
-  savedInsights        SavedInsight[]
-  contextActions       ContextAction[]
+  id                      String                      @id @default(cuid())
+  name                    String
+  email                   String                      @unique
+  username                String?                     @unique
+  passwordHash            String?
+  anonymousDisplayName    String?
+  displayName             String?
+  role                    UserRole
+  verificationLevel       Int                         @default(1)
+  verificationStatus      VerificationStatus          @default(UNVERIFIED)
+  collegeId               String?
+  branch                  String?
+  batch                   String?
+  year                    String?
+  hostelStatus            String?
+  interestedBranch        String?
+  publicBio               String?
+  profileVisibility       ProfileVisibility           @default(PUBLIC_CONTEXT)
+  trustScore              Int                         @default(0)
+  createdAt               DateTime                    @default(now())
+  updatedAt               DateTime                    @updatedAt
+  college                 College?                    @relation(fields: [collegeId], references: [id])
+  questions               Question[]
+  answers                 Answer[]
+  experiences             ExperiencePost[]
+  whatWorksPosts          WhatWorksPost[]
+  validations             Validation[]
+  proofAttachments        ProofAttachment[]
+  reports                 Report[]
+  contextAttachments      ContextAttachment[]
+  followedColleges        FollowedCollege[]
+  watchedThreads          WatchedThread[]
+  savedExperiences        SavedExperience[]
+  savedInsights           SavedInsight[]
+  contextActions          ContextAction[]
+  moderationActions       ModerationAction[]
+  sessions                AuthSession[]
+  notifications           Notification[]              @relation("NotificationRecipient")
+  actorNotifications      Notification[]              @relation("NotificationActor")
+  notificationPreference  NotificationPreference?
+  reviewedColleges        College[]                   @relation("CollegeReviewedBy")
+  collegeChangeRecords    CollegeChangeRecord[]
+  importBatches           CollegeImportBatch[]
+  assignedReports         Report[]                    @relation("AssignedModerator")
+  issuedWarnings          UserWarning[]               @relation("WarningIssuer")
+  receivedWarnings        UserWarning[]               @relation("WarningRecipient")
+  issuedRestrictions      TemporaryRestriction[]      @relation("RestrictionIssuer")
+  receivedRestrictions    TemporaryRestriction[]      @relation("RestrictionRecipient")
+  moderationAppeals       ModerationAppeal[]
+  analyticsEvents         AnalyticsEvent[]
+  betaStatus              BetaAccessStatus            @default(WAITLISTED)
+  betaActivatedAt         DateTime?
+  createdInvites          BetaInvite[]                @relation("InviteCreator")
+  inviteRedemption        BetaInviteRedemption?
+  submittedFeedback       Feedback[]                  @relation("FeedbackSubmitter")
+  assignedFeedback        Feedback[]                  @relation("FeedbackAssignee")
+  feedbackHistoryActions  FeedbackStatusHistory[]
+  guidanceDismissals      GuidanceDismissal[]
+  announcementDismissals  AnnouncementDismissal[]
+  updatedPlatformSettings PlatformSetting[]           @relation("PlatformSettingUpdater")
+  collegeClaimRequests    CollegeClaimRequest[]       @relation("CollegeClaimRequester")
+  reviewedCollegeClaims   CollegeClaimRequest[]       @relation("CollegeClaimReviewer")
+  officialCorrections     OfficialCorrectionRequest[] @relation("CorrectionRequester")
+  reviewedCorrections     OfficialCorrectionRequest[] @relation("CorrectionReviewer")
+  policyAcceptances       PolicyAcceptance[]
+  dataExportRequests      DataExportRequest[]
+  accountDeletionRequests AccountDeletionRequest[]
+}
+
+model Notification {
+  id              String                 @id @default(cuid())
+  recipientUserId String
+  actorUserId     String?
+  type            NotificationType
+  title           String
+  message         String
+  targetType      NotificationTargetType
+  targetId        String
+  destinationUrl  String?
+  metadata        Json?
+  idempotencyKey  String                 @unique
+  readAt          DateTime?
+  createdAt       DateTime               @default(now())
+  recipient       User                   @relation("NotificationRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  actor           User?                  @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([recipientUserId, readAt, createdAt])
+  @@index([targetType, targetId])
+}
+
+model NotificationPreference {
+  id                      String   @id @default(cuid())
+  userId                  String   @unique
+  repliesToMyContent      Boolean  @default(true)
+  watchedThreadUpdates    Boolean  @default(true)
+  followedCollegeUpdates  Boolean  @default(true)
+  savedContentUpdates     Boolean  @default(true)
+  reportModerationUpdates Boolean  @default(true)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuthSession {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model College {
-  id               String            @id @default(cuid())
-  name             String
-  slug             String            @unique
-  city             String
-  state            String
-  country          String            @default("India")
-  officialWebsite  String
-  affiliation      String
-  courses          String[]
-  feeRange         String?
-  admissionModes   String[]
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
-  users            User[]
-  questions        Question[]
-  answers          Answer[]
-  experiences      ExperiencePost[]
-  claimRealities   ClaimReality[]
-  whatWorksPosts   WhatWorksPost[]
-  followedColleges FollowedCollege[]
+  id                 String                      @id @default(cuid())
+  name               String
+  normalizedName     String?
+  slug               String                      @unique
+  shortName          String?
+  city               String
+  state              String
+  country            String                      @default("India")
+  officialWebsite    String
+  officialLogoUrl    String?
+  publicImageUrl     String?
+  affiliation        String
+  courses            String[]
+  district           String?
+  collegeType        String?
+  institutionType    String?
+  ownershipType      String?
+  latitude           Float?
+  longitude          Float?
+  establishedYear    Int?
+  accreditation      String?
+  aliases            String[]                    @default([])
+  searchKeywords     String[]                    @default([])
+  sourceName         String?
+  sourceUrl          String?
+  sourceRecordId     String?
+  sourceUpdatedAt    DateTime?
+  importedAt         DateTime?
+  lastVerifiedAt     DateTime?
+  lastReviewedAt     DateTime?
+  reviewedByUserId   String?
+  internalReviewNote String?
+  recordStatus       CollegeRecordStatus         @default(PUBLISHED)
+  dataOrigin         CollegeDataOrigin           @default(FICTIONAL_DEMO)
+  importBatchId      String?
+  imageUrl           String?
+  imageSource        String?
+  imageAttribution   String?
+  imageLicense       String?
+  dataNotes          String?
+  feeRange           String?
+  admissionModes     String[]
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  users              User[]
+  questions          Question[]
+  answers            Answer[]
+  experiences        ExperiencePost[]
+  claimRealities     ClaimReality[]
+  whatWorksPosts     WhatWorksPost[]
+  followedColleges   FollowedCollege[]
+  importBatch        CollegeImportBatch?         @relation(fields: [importBatchId], references: [id])
+  reviewedBy         User?                       @relation("CollegeReviewedBy", fields: [reviewedByUserId], references: [id])
+  changeRecords      CollegeChangeRecord[]
+  claimRequests      CollegeClaimRequest[]
+  correctionRequests OfficialCorrectionRequest[]
+
+  @@index([recordStatus])
+  @@index([recordStatus, name])
+  @@index([recordStatus, state, city])
+  @@index([normalizedName, city, state])
+  @@index([sourceName, sourceRecordId])
+  @@index([officialWebsite])
+}
+
+model CollegeImportBatch {
+  id              String            @id @default(cuid())
+  fileName        String
+  sourceName      String?
+  status          ImportBatchStatus
+  totalRows       Int               @default(0)
+  successfulRows  Int               @default(0)
+  failedRows      Int               @default(0)
+  warningCount    Int               @default(0)
+  importActorId   String?
+  importerVersion String
+  startedAt       DateTime          @default(now())
+  completedAt     DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  importActor     User?             @relation(fields: [importActorId], references: [id])
+  colleges        College[]
+
+  @@index([status])
+  @@index([startedAt])
+}
+
+model CollegeChangeRecord {
+  id            String   @id @default(cuid())
+  collegeId     String
+  actionType    String
+  changedById   String?
+  changedFields Json?
+  note          String?
+  createdAt     DateTime @default(now())
+  college       College  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  changedBy     User?    @relation(fields: [changedById], references: [id])
+
+  @@index([collegeId])
+  @@index([actionType])
 }
 
 model Question {
-  id        String         @id @default(cuid())
-  collegeId String
-  userId    String
-  title     String
-  body      String
-  category  String
-  branch    String?
-  branchYearContext String?
-  topicTags String[] @default([])
-  freshnessLabel String?
-  participantContext String?
-  contextBadge String?
+  id                   String            @id @default(cuid())
+  collegeId            String
+  userId               String
+  title                String
+  body                 String
+  category             String
+  branch               String?
+  branchYearContext    String?
+  topicTags            String[]          @default([])
+  freshnessLabel       String?
+  participantContext   String?
+  contextBadge         String?
   currentStudentSignal String?
   reconfirmationSignal String?
-  speakerContext String?
-  trustLabel String?
-  lastActiveAt DateTime @default(now())
-  status    QuestionStatus @default(OPEN)
-  createdAt DateTime       @default(now())
-  updatedAt DateTime       @updatedAt
-  college   College        @relation(fields: [collegeId], references: [id])
-  user      User           @relation(fields: [userId], references: [id])
-  answers   Answer[]
-  watchedBy WatchedThread[]
+  speakerContext       String?
+  trustLabel           String?
+  lastActiveAt         DateTime          @default(now())
+  status               QuestionStatus    @default(OPEN)
+  riskLevel            ContentRiskLevel  @default(LOW)
+  visibility           ContentVisibility @default(VISIBLE)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  college              College           @relation(fields: [collegeId], references: [id])
+  user                 User              @relation(fields: [userId], references: [id])
+  answers              Answer[]
+  watchedBy            WatchedThread[]
+
+  @@index([collegeId, visibility, lastActiveAt])
+  @@index([userId, createdAt])
+  @@index([visibility, riskLevel, updatedAt])
 }
 
 model Answer {
-  id                 String           @id @default(cuid())
+  id                 String            @id @default(cuid())
   questionId         String
   collegeId          String
   userId             String
@@ -183,48 +542,63 @@ model Answer {
   batchContext       String?
   studentTypeContext String
   speakerContext     String?
-  trustLabel          String?
+  trustLabel         String?
   contextBadge       String?
   communityContext   String?
   communityCounts    Json?
-  moderationStatus   ModerationStatus @default(VISIBLE)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  question           Question         @relation(fields: [questionId], references: [id])
-  college            College          @relation(fields: [collegeId], references: [id])
-  user               User             @relation(fields: [userId], references: [id])
+  moderationStatus   ModerationStatus  @default(VISIBLE)
+  riskLevel          ContentRiskLevel  @default(LOW)
+  visibility         ContentVisibility @default(VISIBLE)
+  editedAt           DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  question           Question          @relation(fields: [questionId], references: [id])
+  college            College           @relation(fields: [collegeId], references: [id])
+  user               User              @relation(fields: [userId], references: [id])
+
+  @@index([questionId, visibility, createdAt])
+  @@index([userId, createdAt])
+  @@index([visibility, riskLevel, updatedAt])
 }
 
 model ExperiencePost {
-  id                 String           @id @default(cuid())
-  collegeId          String
-  userId             String
-  title              String
-  body               String
-  category           String
-  branch             String?
-  batch              String?
-  yearOrBatch        String?
-  hostelStatus       String?
-  tags               String[]         @default([])
-  whatWorked         String
-  whatDidNotWork     String
-  advice             String
-  wishIKnewEarlier   String
-  actuallyWorksHere  String
-  whoThisMayHelp     String
-  communityContext   String
-  studentContext     String
-  freshnessLabel     String?
-  contextBadge       String?
-  recentChanges      String?
-  proofStatus        String
-  moderationStatus   ModerationStatus @default(VISIBLE)
-  createdAt          DateTime         @default(now())
-  updatedAt          DateTime         @updatedAt
-  college            College          @relation(fields: [collegeId], references: [id])
-  user               User             @relation(fields: [userId], references: [id])
-  savedBy            SavedExperience[]
+  id                String            @id @default(cuid())
+  collegeId         String
+  userId            String
+  title             String
+  body              String
+  category          String
+  branch            String?
+  batch             String?
+  yearOrBatch       String?
+  hostelStatus      String?
+  tags              String[]          @default([])
+  whatWorked        String
+  whatDidNotWork    String
+  advice            String
+  wishIKnewEarlier  String
+  actuallyWorksHere String
+  whoThisMayHelp    String
+  communityContext  String
+  studentContext    String
+  trustLabel        String?
+  freshnessLabel    String?
+  contextBadge      String?
+  recentChanges     String?
+  proofStatus       String
+  moderationStatus  ModerationStatus  @default(VISIBLE)
+  riskLevel         ContentRiskLevel  @default(LOW)
+  visibility        ContentVisibility @default(VISIBLE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  college           College           @relation(fields: [collegeId], references: [id])
+  user              User              @relation(fields: [userId], references: [id])
+  savedBy           SavedExperience[]
+
+  @@index([collegeId, visibility, updatedAt])
+  @@index([userId, createdAt])
+  @@index([visibility, riskLevel, updatedAt])
 }
 
 model ClaimReality {
@@ -240,36 +614,45 @@ model ClaimReality {
 }
 
 model WhatWorksPost {
-  id        String   @id @default(cuid())
-  collegeId String
-  userId    String
-  title     String
-  body      String
-  category  String
-  branch    String?
-  practicalAdvice String?
-  whyItHelps      String?
-  whoShouldKnow   String?
-  studentContext  String?
-  tags            String[] @default([])
-  freshnessLabel String?
-  contextBadge   String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  college   College  @relation(fields: [collegeId], references: [id])
-  user      User     @relation(fields: [userId], references: [id])
-  savedBy   SavedInsight[]
+  id               String            @id @default(cuid())
+  collegeId        String
+  userId           String
+  title            String
+  body             String
+  category         String
+  branch           String?
+  practicalAdvice  String?
+  whyItHelps       String?
+  whoShouldKnow    String?
+  studentContext   String?
+  trustLabel       String?
+  tags             String[]          @default([])
+  freshnessLabel   String?
+  contextBadge     String?
+  limitations      String?
+  moderationStatus ModerationStatus  @default(VISIBLE)
+  riskLevel        ContentRiskLevel  @default(LOW)
+  visibility       ContentVisibility @default(VISIBLE)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  college          College           @relation(fields: [collegeId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
+  savedBy          SavedInsight[]
+
+  @@index([collegeId, visibility, updatedAt])
+  @@index([userId, createdAt])
+  @@index([visibility, riskLevel, updatedAt])
 }
 
 model Validation {
-  id                String               @id @default(cuid())
-  targetType        ValidationTargetType
-  targetId          String
-  userId            String
-  validationType    ValidationType
-  optionalComment   String?
-  createdAt         DateTime             @default(now())
-  user              User                 @relation(fields: [userId], references: [id])
+  id              String               @id @default(cuid())
+  targetType      ValidationTargetType
+  targetId        String
+  userId          String
+  validationType  ValidationType
+  optionalComment String?
+  createdAt       DateTime             @default(now())
+  user            User                 @relation(fields: [userId], references: [id])
 }
 
 model ContextAction {
@@ -320,16 +703,91 @@ model ContextAttachment {
 }
 
 model Report {
-  id               String       @id @default(cuid())
-  targetType       String
-  targetId         String
-  reporterUserId   String
-  reason           String
-  details          String?
-  status           ReportStatus @default(PENDING)
-  moderatorNotes   String?
-  createdAt        DateTime     @default(now())
-  reporter         User         @relation(fields: [reporterUserId], references: [id])
+  id                  String             @id @default(cuid())
+  targetType          String
+  targetId            String
+  reporterUserId      String
+  reason              String
+  details             String?
+  status              ReportStatus       @default(PENDING)
+  moderatorNotes      String?
+  riskLevel           ContentRiskLevel   @default(LOW)
+  assignedModeratorId String?
+  assignedAt          DateTime?
+  resolvedAt          DateTime?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
+  reporter            User               @relation(fields: [reporterUserId], references: [id])
+  assignedModerator   User?              @relation("AssignedModerator", fields: [assignedModeratorId], references: [id], onDelete: SetNull)
+  moderationActions   ModerationAction[]
+
+  @@index([status, riskLevel, createdAt])
+  @@index([assignedModeratorId, status])
+}
+
+model ModerationAction {
+  id           String             @id @default(cuid())
+  actionType   String
+  moderatorId  String
+  reportId     String?
+  targetType   String
+  targetId     String
+  internalNote String?
+  createdAt    DateTime           @default(now())
+  moderator    User               @relation(fields: [moderatorId], references: [id])
+  report       Report?            @relation(fields: [reportId], references: [id])
+  appeals      ModerationAppeal[]
+
+  @@index([targetType, targetId])
+  @@index([reportId])
+}
+
+model UserWarning {
+  id              String          @id @default(cuid())
+  recipientUserId String
+  issuedByUserId  String
+  reason          String
+  severity        WarningSeverity @default(LOW)
+  targetType      String?
+  targetId        String?
+  acknowledgedAt  DateTime?
+  createdAt       DateTime        @default(now())
+  recipient       User            @relation("WarningRecipient", fields: [recipientUserId], references: [id], onDelete: Cascade)
+  issuedBy        User            @relation("WarningIssuer", fields: [issuedByUserId], references: [id])
+
+  @@index([recipientUserId, acknowledgedAt, createdAt])
+}
+
+model TemporaryRestriction {
+  id             String          @id @default(cuid())
+  userId         String
+  type           RestrictionType
+  reason         String
+  startsAt       DateTime        @default(now())
+  expiresAt      DateTime
+  issuedByUserId String
+  internalNote   String?
+  createdAt      DateTime        @default(now())
+  user           User            @relation("RestrictionRecipient", fields: [userId], references: [id], onDelete: Cascade)
+  issuedBy       User            @relation("RestrictionIssuer", fields: [issuedByUserId], references: [id])
+
+  @@index([userId, type, startsAt, expiresAt])
+}
+
+model ModerationAppeal {
+  id                 String           @id @default(cuid())
+  userId             String
+  moderationActionId String
+  clarification      String
+  status             AppealStatus     @default(OPEN)
+  resolutionSummary  String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  user               User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  moderationAction   ModerationAction @relation(fields: [moderationActionId], references: [id])
+
+  @@unique([userId, moderationActionId])
+  @@index([status, createdAt])
 }
 
 model FollowedCollege {
@@ -341,6 +799,7 @@ model FollowedCollege {
   college   College  @relation(fields: [collegeId], references: [id])
 
   @@unique([userId, collegeId])
+  @@index([collegeId, createdAt])
 }
 
 model WatchedThread {
@@ -352,6 +811,7 @@ model WatchedThread {
   thread    Question @relation(fields: [threadId], references: [id])
 
   @@unique([userId, threadId])
+  @@index([threadId, createdAt])
 }
 
 model SavedExperience {
@@ -363,6 +823,7 @@ model SavedExperience {
   experience   ExperiencePost @relation(fields: [experienceId], references: [id])
 
   @@unique([userId, experienceId])
+  @@index([experienceId, createdAt])
 }
 
 model SavedInsight {
@@ -374,4 +835,264 @@ model SavedInsight {
   insight   WhatWorksPost @relation(fields: [insightId], references: [id])
 
   @@unique([userId, insightId])
+  @@index([insightId, createdAt])
+}
+
+model AnalyticsEvent {
+  id            String   @id @default(cuid())
+  eventType     String
+  routeCategory String?
+  userId        String?
+  createdAt     DateTime @default(now())
+  user          User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([eventType, createdAt])
+  @@index([userId, createdAt])
+  @@index([routeCategory, createdAt])
+}
+
+model OperationalEvent {
+  id        String   @id @default(cuid())
+  level     String
+  category  String
+  code      String
+  requestId String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([level, createdAt])
+  @@index([category, createdAt])
+}
+
+model BetaInvite {
+  id          String                 @id @default(cuid())
+  codeHash    String                 @unique
+  label       String?
+  creatorId   String
+  expiresAt   DateTime?
+  maxUses     Int                    @default(1)
+  usageCount  Int                    @default(0)
+  active      Boolean                @default(true)
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  creator     User                   @relation("InviteCreator", fields: [creatorId], references: [id])
+  redemptions BetaInviteRedemption[]
+
+  @@index([active, expiresAt])
+}
+
+model BetaInviteRedemption {
+  id         String     @id @default(cuid())
+  inviteId   String
+  userId     String     @unique
+  redeemedAt DateTime   @default(now())
+  invite     BetaInvite @relation(fields: [inviteId], references: [id])
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([inviteId, redeemedAt])
+}
+
+model BetaWaitlist {
+  id              String         @id @default(cuid())
+  name            String
+  email           String         @unique
+  collegeInterest String?
+  reason          String?
+  status          WaitlistStatus @default(PENDING)
+  internalNote    String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model Feedback {
+  id                String                  @id @default(cuid())
+  submitterId       String
+  category          FeedbackCategory
+  title             String
+  description       String
+  currentPage       String?
+  browserContext    String?
+  status            FeedbackStatus          @default(NEW)
+  assignedAdminId   String?
+  duplicateOfId     String?
+  internalNote      String?
+  resolutionSummary String?
+  resolvedAt        DateTime?
+  idempotencyKey    String                  @unique
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime                @updatedAt
+  submitter         User                    @relation("FeedbackSubmitter", fields: [submitterId], references: [id], onDelete: Cascade)
+  assignedAdmin     User?                   @relation("FeedbackAssignee", fields: [assignedAdminId], references: [id], onDelete: SetNull)
+  duplicateOf       Feedback?               @relation("FeedbackDuplicates", fields: [duplicateOfId], references: [id])
+  duplicates        Feedback[]              @relation("FeedbackDuplicates")
+  history           FeedbackStatusHistory[]
+
+  @@index([status, category, createdAt])
+  @@index([submitterId, createdAt])
+  @@index([assignedAdminId, status])
+}
+
+model FeedbackStatusHistory {
+  id         String         @id @default(cuid())
+  feedbackId String
+  status     FeedbackStatus
+  actorId    String
+  createdAt  DateTime       @default(now())
+  feedback   Feedback       @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  actor      User           @relation(fields: [actorId], references: [id])
+
+  @@index([feedbackId, createdAt])
+}
+
+model FeatureFlag {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  enabled   Boolean
+  updatedAt DateTime @updatedAt
+}
+
+model ReleaseRecord {
+  id               String   @id @default(cuid())
+  version          String   @unique
+  releaseDate      DateTime
+  migrationVersion String
+  buildIdentifier  String?
+  environment      String
+  createdAt        DateTime @default(now())
+}
+
+model BetaAnnouncement {
+  id         String                  @id @default(cuid())
+  title      String
+  message    String
+  startsAt   DateTime
+  expiresAt  DateTime?
+  audience   AnnouncementAudience
+  active     Boolean                 @default(true)
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  dismissals AnnouncementDismissal[]
+
+  @@index([active, startsAt, expiresAt])
+}
+
+model AnnouncementDismissal {
+  id             String           @id @default(cuid())
+  announcementId String
+  userId         String
+  dismissedAt    DateTime         @default(now())
+  announcement   BetaAnnouncement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([announcementId, userId])
+}
+
+model GuidanceDismissal {
+  id          String   @id @default(cuid())
+  userId      String
+  guidanceKey String
+  dismissedAt DateTime @default(now())
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, guidanceKey])
+}
+
+model PlatformSetting {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  value       Json
+  updatedById String?
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+  updatedBy   User?    @relation("PlatformSettingUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+}
+
+model CollegeClaimRequest {
+  id                 String                      @id @default(cuid())
+  requesterId        String
+  collegeId          String?
+  collegeName        String
+  institutionalEmail String
+  roleOrDepartment   String
+  officialWebsite    String?
+  reason             String
+  sourceInfo         String?
+  status             CollegeClaimRequestStatus   @default(SUBMITTED)
+  adminNote          String?
+  reviewedById       String?
+  reviewedAt         DateTime?
+  createdAt          DateTime                    @default(now())
+  updatedAt          DateTime                    @updatedAt
+  requester          User                        @relation("CollegeClaimRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  college            College?                    @relation(fields: [collegeId], references: [id], onDelete: SetNull)
+  reviewedBy         User?                       @relation("CollegeClaimReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  corrections        OfficialCorrectionRequest[]
+
+  @@index([requesterId, status, createdAt])
+  @@index([collegeId, status])
+  @@index([status, createdAt])
+}
+
+model OfficialCorrectionRequest {
+  id             String                   @id @default(cuid())
+  requesterId    String
+  collegeId      String
+  claimRequestId String?
+  fieldName      String
+  proposedValue  String
+  currentValue   String?
+  sourceUrl      String?
+  sourceInfo     String?
+  status         OfficialCorrectionStatus @default(SUBMITTED)
+  adminNote      String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime                 @default(now())
+  updatedAt      DateTime                 @updatedAt
+  requester      User                     @relation("CorrectionRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  college        College                  @relation(fields: [collegeId], references: [id], onDelete: Cascade)
+  claimRequest   CollegeClaimRequest?     @relation(fields: [claimRequestId], references: [id], onDelete: SetNull)
+  reviewedBy     User?                    @relation("CorrectionReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([requesterId, status, createdAt])
+  @@index([collegeId, status])
+  @@index([status, createdAt])
+}
+
+model PolicyAcceptance {
+  id         String     @id @default(cuid())
+  userId     String
+  policyType PolicyType
+  version    String
+  acceptedAt DateTime   @default(now())
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, policyType, version])
+  @@index([userId, acceptedAt])
+}
+
+model DataExportRequest {
+  id          String           @id @default(cuid())
+  userId      String
+  status      DataExportStatus @default(REQUESTED)
+  requestedAt DateTime         @default(now())
+  completedAt DateTime?
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, requestedAt])
+}
+
+model AccountDeletionRequest {
+  id               String                @id @default(cuid())
+  userId           String
+  status           AccountDeletionStatus @default(REQUESTED)
+  requestedAt      DateTime              @default(now())
+  coolingOffEndsAt DateTime?
+  completedAt      DateTime?
+  userNote         String?
+  user             User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, requestedAt])
 }

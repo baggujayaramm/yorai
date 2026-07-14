@@ -9,13 +9,34 @@ import { getLocalThreads, LOCAL_THREAD_EVENT } from '@/lib/local-thread-storage'
 import { fetchPersonalRecords, PERSONAL_STATE_EVENT, type PersonalRecord } from '@/lib/personal-state-storage';
 import { freshnessClass } from './ThreadCard';
 
+type ActivityItem = {
+  type?: string;
+  title: string;
+  meta?: string;
+  message?: string;
+  href?: string;
+  signal?: string;
+  read?: boolean;
+};
+
+type ActivityPayload = {
+  recentContributions?: ActivityItem[];
+  recentNotifications?: ActivityItem[];
+  followUps?: ActivityItem[];
+};
+
 export function MyYoraiDashboard() {
   const [records, setRecords] = useState<PersonalRecord[]>([]);
+  const [activity, setActivity] = useState<ActivityPayload>({});
   const [localSignal, setLocalSignal] = useState(0);
 
   useEffect(() => {
     const load = () => {
       fetchPersonalRecords().then(setRecords).catch(() => setRecords([]));
+      fetch('/api/activity', { cache: 'no-store' })
+        .then((response) => response.json() as Promise<ActivityPayload>)
+        .then(setActivity)
+        .catch(() => setActivity({}));
       setLocalSignal((value) => value + 1);
     };
     load();
@@ -57,6 +78,18 @@ export function MyYoraiDashboard() {
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
+        <DashboardSection title="Recent contribution activity" empty="Start or answer a thread to see your recent Yorai activity here.">
+          {(activity.recentContributions ?? []).map((item, index) => (
+            <CompactCard href={item.href} key={`${item.title}-${index}`} title={item.title} meta={`${item.type ?? 'Contribution'} · ${item.meta ?? 'Student context'}`} badges={['Recently active']} />
+          ))}
+        </DashboardSection>
+
+        <DashboardSection title="Follow-ups" empty="No follow-ups right now. Yorai will only nudge you when context is actually useful.">
+          {(activity.followUps ?? []).map((item, index) => (
+            <CompactCard href={item.href} key={`${item.title}-${index}`} title={item.title} meta={item.message ?? item.meta ?? 'Useful context update'} badges={['Needs current context']} />
+          ))}
+        </DashboardSection>
+
         <DashboardSection title="Followed colleges" empty="You haven’t followed any colleges yet.">
           {data.followed.map((college) => college && (
             <CompactCard href={`/colleges/${college.slug}`} key={college.id} title={college.name} meta={`${college.city}, ${college.state}`} badges={['Recently active', 'Student context']} />
@@ -90,6 +123,12 @@ export function MyYoraiDashboard() {
         <DashboardSection title="Recently active watched threads" empty="Watch a thread to see recent activity here.">
           {data.activeWatched.map((thread) => thread && (
             <CompactCard href={`/colleges/${collegeSlug(thread.collegeId)}/threads/${thread.id}`} key={thread.id} title={thread.title} meta={`Last active ${thread.lastActiveDate}`} badges={[thread.lastActivity, thread.freshnessLabel]} />
+          ))}
+        </DashboardSection>
+
+        <DashboardSection title="Recent notifications" empty="No notifications yet. Follow colleges or watch threads to get calm updates.">
+          {(activity.recentNotifications ?? []).map((item, index) => (
+            <CompactCard href={item.href ?? '/notifications'} key={`${item.title}-${index}`} title={item.title} meta={item.message ?? 'Yorai update'} badges={[item.read ? 'Read' : 'Recently active']} />
           ))}
         </DashboardSection>
       </div>

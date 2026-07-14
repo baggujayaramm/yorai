@@ -38,8 +38,9 @@ export function CommunityContextButtons({ targetType, targetId, initialFreshness
   const summary = getCommunitySummary({ records, initialFreshness, initialCounts });
 
   return (
-    <div className="glass-panel community-readable dark-readable-glass rounded-2xl p-5">
-      <h3 className="font-semibold text-ink">Add community context</h3>
+    <div className="community-context-panel community-readable rounded-2xl p-5">
+      <span className="state-label state-label-context">Community Context</span>
+      <h3 className="mt-3 font-semibold text-ink">Add community context</h3>
       <p className="mt-2 text-sm text-ink/65">
         College life changes by branch, batch, hostel, faculty, and year. Add context so future students understand where it applies.
       </p>
@@ -67,7 +68,7 @@ export function CommunityContextButtons({ targetType, targetId, initialFreshness
           );
         })}
       </div>
-      {error && <p className="mt-3 text-sm font-semibold text-sun">{error}</p>}
+      {error && <p aria-live="assertive" className="mt-3 text-sm font-semibold text-sun" role="alert">{error}</p>}
       {records.length > 0 && (
         <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
           {communityActions.map((action) => {

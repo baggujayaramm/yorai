@@ -1,0 +1,2 @@
+import { WaitlistForm } from '@/components/BetaForms';
+export default function WaitlistPage(){return <main className="mx-auto max-w-xl px-4 py-12 sm:px-6"><p className="text-sm font-semibold text-iris">Closed beta</p><h1 className="mt-2 text-3xl font-semibold text-ink">Request an invitation</h1><p className="my-5 text-sm leading-6 text-ink/65">Yorai is opening carefully so student context stays useful, respectful, and supported.</p><WaitlistForm/></main>}
