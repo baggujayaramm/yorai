@@ -1,4 +1,6 @@
-export type UserRole = 'ASPIRANT' | 'CURRENT_STUDENT' | 'ALUMNI' | 'MODERATOR';
+import type { CollegeDataOrigin, CollegeRecordStatus } from '@prisma/client';
+
+export type UserRole = 'USER' | 'ASPIRANT' | 'CURRENT_STUDENT' | 'ALUMNI' | 'MODERATOR' | 'ADMIN';
 
 export type User = {
   id: string;
@@ -19,6 +21,7 @@ export type College = {
   id: string;
   name: string;
   slug: string;
+  shortName?: string;
   city: string;
   state: string;
   country: string;
@@ -27,6 +30,15 @@ export type College = {
   courses: string[];
   feeRange: string;
   admissionModes: string[];
+  district?: string;
+  collegeType?: string;
+  institutionType?: string;
+  ownershipType?: string;
+  establishedYear?: number;
+  accreditation?: string;
+  sourceName?: string;
+  dataOrigin?: CollegeDataOrigin;
+  recordStatus?: CollegeRecordStatus;
 };
 
 export type Question = {
@@ -37,7 +49,7 @@ export type Question = {
   body: string;
   category: string;
   branch?: string;
-  status: 'OPEN' | 'ANSWERED';
+  status: 'OPEN' | 'ACTIVE' | 'ANSWERED' | 'CLOSED' | 'ARCHIVED';
   lastActivity: string;
   lastActiveDate: string;
   freshnessLabel: string;
@@ -69,6 +81,8 @@ export type Answer = {
   batchContext?: string;
   studentTypeContext: string;
   createdAt?: string;
+  editedAt?: string;
+  deletedAt?: string;
   contextBadge?: string;
   communityContext?: string;
   speakerContext?: string;
@@ -137,6 +151,7 @@ export type WhatWorksPost = {
   tags?: string[];
   freshnessLabel?: string;
   contextBadge?: string;
+  limitations?: string;
 };
 
 export type Validation = {

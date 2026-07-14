@@ -14,15 +14,13 @@ export const REPORT_EVENT = 'yorai-report-change';
 const REPORTS_KEY = 'yorai.localReports.v1';
 
 export const reportReasons = [
-  'Privacy issue',
-  'Fake or spam',
-  'Foul language',
-  'Personal attack',
-  'Outdated or misleading',
-  'Unsupported serious allegation',
   'Harassment',
-  'Minor safety concern',
-  'Incorrect college or branch',
+  'Private information',
+  'Impersonation',
+  'Spam',
+  'Misleading context',
+  'Unsupported accusation',
+  'Irrelevant content',
   'Other',
 ];
 

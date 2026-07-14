@@ -4,17 +4,19 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"tests/**/*.test.ts\"",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "prisma db seed"
+    "prisma:seed": "prisma db seed",
+    "import:colleges": "tsx scripts/import-colleges.ts"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "next": "^16.2.10",
+    "next": "16.2.10",
     "prisma": "6.19.3",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"

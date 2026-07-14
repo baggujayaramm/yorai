@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useRef, useState } from 'react';
+import { FormEvent, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import type { College } from '@/lib/types';
 import type { LocalThreadDraft } from '@/lib/local-thread-storage';
@@ -9,9 +9,16 @@ import { CurrentContextNote } from './CurrentContextNote';
 
 export function CreateThreadForm({ college }: { college: College }) {
   const router = useRouter();
+  const draftKey = `yorai-thread-draft:${college.id}`;
   const [draft, setDraft] = useState<LocalThreadDraft | null>(null);
+  const [formDraft, setFormDraft] = useState<LocalThreadDraft>(() => readDraft(draftKey, { title: '', context: '', tags: [], body: '' }));
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const attachmentRef = useRef<ContextAttachmentHandle | null>(null);
+  useEffect(() => {
+    window.localStorage.setItem(draftKey, JSON.stringify(formDraft));
+  }, [draftKey, formDraft]);
 
   const onSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,20 +39,31 @@ export function CreateThreadForm({ college }: { college: College }) {
   const postThread = async () => {
     if (!draft) return;
     setError('');
+    setNotice('');
+    setSubmitting(true);
     const response = await fetch('/api/threads', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...draft, collegeId: college.id }),
     });
-    const data = (await response.json()) as { ok: boolean; threadId?: string; error?: string };
+    const data = (await response.json()) as { ok: boolean; threadId?: string; error?: string; underReview?: boolean; warning?: string };
     if (!response.ok || !data.ok || !data.threadId) {
       setError(data.error ?? 'Could not save this yet. Try again.');
+      setSubmitting(false);
       return;
     }
     try {
       await attachmentRef.current?.uploadForTarget('THREAD', data.threadId);
     } catch {
       setError('Thread saved, but context attachment could not be saved yet. Try again from the thread page.');
+      setSubmitting(false);
+      return;
+    }
+    window.localStorage.removeItem(draftKey);
+    if (data.underReview) {
+      setNotice(data.warning ?? 'Thread saved privately for moderation review.');
+      setSubmitting(false);
+      setDraft(null);
       return;
     }
     router.push(`/colleges/${college.slug}/threads/${data.threadId}`);
@@ -67,27 +85,28 @@ export function CreateThreadForm({ college }: { college: College }) {
         <div className="mt-5 grid gap-3">
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Topic title
-            <input name="title" className="rounded-xl border border-line bg-surface/82 px-3 py-2.5 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" placeholder="What do you want to understand?" required />
+            <input name="title" value={formDraft.title} onChange={(event) => setFormDraft((current) => ({ ...current, title: event.target.value }))} className="form-field rounded-xl px-3 py-2.5 font-normal" placeholder="What do you want to understand?" required />
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-2 text-sm font-semibold text-ink">
               Branch/year context
-              <input name="context" className="rounded-xl border border-line bg-surface/82 px-3 py-2.5 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" placeholder="CSE, first year, hostel..." />
+              <input name="context" value={formDraft.context} onChange={(event) => setFormDraft((current) => ({ ...current, context: event.target.value }))} className="form-field rounded-xl px-3 py-2.5 font-normal" placeholder="CSE, first year, hostel..." />
             </label>
             <label className="grid gap-2 text-sm font-semibold text-ink">
               Topic tags
-              <input name="tags" className="rounded-xl border border-line bg-surface/82 px-3 py-2.5 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" placeholder="labs, hostel, clubs" />
+              <input name="tags" value={formDraft.tags.join(', ')} onChange={(event) => setFormDraft((current) => ({ ...current, tags: event.target.value.split(',').map((tag) => tag.trim()).filter(Boolean) }))} className="form-field rounded-xl px-3 py-2.5 font-normal" placeholder="labs, hostel, clubs" />
             </label>
           </div>
           <label className="grid gap-2 text-sm font-semibold text-ink">
             Your question and context
-            <textarea name="body" className="min-h-28 rounded-2xl border border-line bg-surface/82 px-3 py-3 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" placeholder="Share what context would help. Avoid private information or personal attacks." required />
+            <textarea name="body" value={formDraft.body} onChange={(event) => setFormDraft((current) => ({ ...current, body: event.target.value }))} className="form-field min-h-28 rounded-2xl px-3 py-3 font-normal" placeholder="Share what context would help. Avoid private information or personal attacks." required />
           </label>
         </div>
         <p className="mt-3 text-xs leading-5 text-ink/55">
           Context attachments can come later. Check safe sharing before adding screenshots or photos.
         </p>
-        <button className="button-primary mt-5 px-4 py-2.5" type="submit">
+        <p className="mt-3 text-xs leading-5 text-ink/55">Do not post phone numbers, email addresses, roll numbers, registration numbers, addresses, ID documents, private chats, or names of private individuals.</p>
+        <button className="button-primary mt-5 px-4 py-2.5 disabled:opacity-60" disabled={submitting} type="submit">
           Prepare thread
         </button>
       </form>
@@ -108,23 +127,36 @@ export function CreateThreadForm({ college }: { college: College }) {
           </p>
           <ContextAttachmentInfo ref={attachmentRef} />
           <div className="mt-5 flex flex-wrap gap-3">
-            <button className="button-primary px-4 py-2.5" onClick={postThread} type="button">
-              Start thread
+            <button className="button-primary px-4 py-2.5 disabled:opacity-60" disabled={submitting} onClick={postThread} type="button">
+              {submitting ? 'Starting...' : 'Start thread'}
             </button>
             <button className="button-secondary px-4 py-2.5" onClick={() => setDraft(null)} type="button">
               Edit first
             </button>
           </div>
-          {error && <p className="mt-3 text-sm font-semibold text-sun">{error}</p>}
+          {error && <p aria-live="assertive" className="mt-3 text-sm font-semibold text-sun" role="alert">{error}</p>}
         </section>
       )}
+      {notice && <p className="rounded-2xl bg-sun/10 p-4 text-sm font-semibold text-sun">{notice}</p>}
     </div>
   );
+}
+
+function readDraft<T>(key: string, fallback: T) {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = window.localStorage.getItem(key);
+    return saved ? JSON.parse(saved) as T : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function ReplyForm({ collegeId, threadId }: { collegeId: string; threadId: string }) {
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const attachmentRef = useRef<ContextAttachmentHandle | null>(null);
 
@@ -132,6 +164,8 @@ export function ReplyForm({ collegeId, threadId }: { collegeId: string; threadId
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     setError('');
+    setNotice('');
+    setSubmitting(true);
     const response = await fetch('/api/replies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -143,9 +177,10 @@ export function ReplyForm({ collegeId, threadId }: { collegeId: string; threadId
         attachmentLabel: String(form.get('attachment') ?? '').trim() || undefined,
       }),
     });
-    const data = (await response.json()) as { ok: boolean; replyId?: string; error?: string };
+    const data = (await response.json()) as { ok: boolean; replyId?: string; error?: string; underReview?: boolean; warning?: string };
     if (!response.ok || !data.ok) {
       setError(data.error ?? 'Could not save this yet. Try again.');
+      setSubmitting(false);
       return;
     }
     if (data.replyId) {
@@ -153,11 +188,14 @@ export function ReplyForm({ collegeId, threadId }: { collegeId: string; threadId
         await attachmentRef.current?.uploadForTarget('REPLY', data.replyId);
       } catch {
         setError('Reply saved, but context attachment could not be saved yet. Try again from the thread page.');
+        setSubmitting(false);
         return;
       }
     }
     event.currentTarget.reset();
     setSubmitted(true);
+    setNotice(data.warning ?? '');
+    setSubmitting(false);
     router.refresh();
   };
 
@@ -170,7 +208,7 @@ export function ReplyForm({ collegeId, threadId }: { collegeId: string; threadId
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <label className="grid gap-2 text-sm font-semibold text-ink">
           Your context
-          <select name="role" className="rounded-xl border border-line bg-surface/82 px-3 py-3 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20">
+          <select name="role" className="form-field rounded-xl px-3 py-3 font-normal">
             <option>Aspirant</option>
             <option>Current student</option>
             <option>Alumni</option>
@@ -178,22 +216,24 @@ export function ReplyForm({ collegeId, threadId }: { collegeId: string; threadId
         </label>
         <label className="grid gap-2 text-sm font-semibold text-ink">
           Branch / batch
-          <input name="context" className="rounded-xl border border-line bg-surface/82 px-3 py-3 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" placeholder="CSE, batch 2027" />
+          <input name="context" className="form-field rounded-xl px-3 py-3 font-normal" placeholder="CSE, batch 2027" />
         </label>
       </div>
       <label className="mt-4 grid gap-2 text-sm font-semibold text-ink">
         Reply
-        <textarea name="body" className="min-h-32 rounded-2xl border border-line bg-surface/82 px-3 py-3 font-normal text-ink outline-none focus:border-iris focus:ring-4 focus:ring-iris/20" placeholder="Share what you lived, what changed, or what needs current context." required />
+        <textarea name="body" className="form-field min-h-32 rounded-2xl px-3 py-3 font-normal" placeholder="Share what you lived, what changed, or what needs current context." required />
       </label>
       <p className="mt-3 text-xs leading-5 text-ink/55">
         Context images are reviewed before anything can be shown publicly.
       </p>
+      <p className="mt-2 text-xs leading-5 text-ink/55">Avoid phone numbers, emails, roll numbers, addresses, private chats, or naming private individuals.</p>
       <ContextAttachmentInfo ref={attachmentRef} />
-      <button className="button-primary mt-5 px-5 py-3" type="submit">
-        Prepare Reply
+      <button className="button-primary mt-5 px-5 py-3 disabled:opacity-60" disabled={submitting} type="submit">
+        {submitting ? 'Saving...' : 'Post reply'}
       </button>
-      {error && <p className="mt-4 text-sm font-semibold text-sun">{error}</p>}
+      {error && <p aria-live="assertive" className="mt-4 text-sm font-semibold text-sun" role="alert">{error}</p>}
       {submitted && <p className="mt-4 text-sm font-semibold text-leaf">Reply saved. Thanks for adding useful context.</p>}
+      {notice && <p className="mt-3 text-sm font-semibold text-sun">{notice}</p>}
     </form>
   );
 }

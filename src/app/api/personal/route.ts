@@ -1,17 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getCurrentDemoUserId, requireDemoUserId } from '@/lib/demo-auth';
+import { getCurrentUser, requireCurrentUser } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import type { PersonalTargetType } from '@/lib/personal-state-storage';
+import { consumeInMemoryLimit, ratePolicies } from '@/lib/abuse-prevention';
+import { recordAnalytics } from '@/lib/analytics';
+import { apiErrorResponse } from '@/lib/api-response';
+import { assertBetaWriteAccess } from '@/lib/release-controls';
 
 export async function GET() {
-  const userId = await getCurrentDemoUserId();
-  if (!userId) return NextResponse.json({ ok: true, records: [] });
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ ok: true, records: [] });
+  const userId = user.id;
 
   const [colleges, threads, experiences, insights] = await Promise.all([
-    prisma.followedCollege.findMany({ where: { userId } }),
-    prisma.watchedThread.findMany({ where: { userId } }),
-    prisma.savedExperience.findMany({ where: { userId } }),
-    prisma.savedInsight.findMany({ where: { userId } }),
+    prisma.followedCollege.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 200 }),
+    prisma.watchedThread.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 200 }),
+    prisma.savedExperience.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 200 }),
+    prisma.savedInsight.findMany({ where: { userId }, orderBy: { createdAt: 'desc' }, take: 200 }),
   ]);
 
   return NextResponse.json({
@@ -27,16 +32,23 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const userId = await requireDemoUserId();
+    const user = await requireCurrentUser();
+    await assertBetaWriteAccess(user);
+    const limit = consumeInMemoryLimit(`personal:${user.id}`, ratePolicies.personal);
+    if (!limit.allowed) return NextResponse.json({ ok: false, error: limit.message }, { status: 429 });
     const body = (await request.json()) as { targetType?: PersonalTargetType; targetId?: string };
     if (!body.targetType || !body.targetId) {
       return NextResponse.json({ ok: false, error: 'Missing target.' }, { status: 400 });
     }
 
-    const active = await toggleTarget(userId, body.targetType, body.targetId);
+    const active = await toggleTarget(user.id, body.targetType, body.targetId);
+    if (active) {
+      const event = body.targetType === 'college' ? 'FOLLOW' : body.targetType === 'thread' ? 'WATCH' : body.targetType === 'experience' ? 'SAVE_EXPERIENCE' : 'SAVE_INSIGHT';
+      await recordAnalytics(event, { userId: user.id });
+    }
     return NextResponse.json({ ok: true, active });
   } catch (error) {
-    return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : 'Could not save this yet. Try again.' }, { status: 400 });
+    return apiErrorResponse(error, 'Could not save this yet. Try again.', request, 'personal-actions');
   }
 }
 

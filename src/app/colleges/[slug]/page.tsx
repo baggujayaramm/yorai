@@ -10,8 +10,11 @@ import {
 } from '@/components/ProfilePanels';
 import { CreateExperienceForm, CreateWhatWorksForm } from '@/components/ExperienceForms';
 import { InsightCards } from '@/components/InsightCards';
-import { getCollegeBySlug, getCollegeProfileData } from '@/lib/data';
+import { getCollegeBySlugWithDb, getCollegeProfileData } from '@/lib/data';
+import { featureEnabled } from '@/lib/release-controls';
 import { colleges } from '@/lib/seed-data';
+
+export const dynamic = 'force-dynamic';
 
 type CollegePageProps = {
   params: Promise<{ slug: string }>;
@@ -22,8 +25,9 @@ export function generateStaticParams() {
 }
 
 export default async function CollegePage({ params }: CollegePageProps) {
+  if (!await featureEnabled('public_browsing')) return <PublicBrowsingPaused />;
   const { slug } = await params;
-  const college = getCollegeBySlug(slug);
+  const college = await getCollegeBySlugWithDb(slug);
 
   if (!college) {
     notFound();
@@ -124,6 +128,17 @@ export default async function CollegePage({ params }: CollegePageProps) {
             </p>
           </section>
         </div>
+      </section>
+    </main>
+  );
+}
+
+function PublicBrowsingPaused() {
+  return (
+    <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <section className="liquid-glass-panel rounded-3xl p-6">
+        <h1 className="text-2xl font-semibold text-ink">College context is temporarily paused</h1>
+        <p className="mt-3 text-sm leading-6 text-ink/65">Yorai is reviewing launch access settings before showing public college context again.</p>
       </section>
     </main>
   );

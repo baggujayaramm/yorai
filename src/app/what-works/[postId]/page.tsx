@@ -6,8 +6,10 @@ import { ContextAttachmentInfo, ContextAttachmentSection } from '@/components/Co
 import { ReportButton } from '@/components/ReportButton';
 import { freshnessClass } from '@/components/ThreadCard';
 import { PersonalActionButton } from '@/components/PersonalActionButton';
-import { getWhatWorksById } from '@/lib/data';
-import { colleges, whatWorksPosts } from '@/lib/seed-data';
+import { getWhatWorksByIdWithDb } from '@/lib/data';
+import { whatWorksPosts } from '@/lib/seed-data';
+
+export const dynamic = 'force-dynamic';
 
 type WhatWorksDetailProps = {
   params: Promise<{ postId: string }>;
@@ -19,13 +21,13 @@ export function generateStaticParams() {
 
 export default async function WhatWorksDetailPage({ params }: WhatWorksDetailProps) {
   const { postId } = await params;
-  const post = getWhatWorksById(postId);
+  const result = await getWhatWorksByIdWithDb(postId);
+  const post = result?.post;
+  const college = result?.college;
 
   if (!post) {
     notFound();
   }
-
-  const college = colleges.find((item) => item.id === post.collegeId);
 
   if (!college) {
     notFound();

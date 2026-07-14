@@ -48,7 +48,7 @@ export function AttachmentModeratorQueue() {
 
   return (
     <div className="grid gap-4">
-      {error && <p className="rounded bg-sun/10 p-3 text-sm font-semibold text-sun">{error}</p>}
+      {error && <p aria-live="assertive" className="rounded bg-sun/10 p-3 text-sm font-semibold text-sun" role="alert">{error}</p>}
       {attachments.length === 0 ? (
         <div className="rounded border border-dashed border-line bg-surface/72 p-6 text-sm text-ink/65 shadow-soft backdrop-blur-xl">
           No context attachments waiting for review.

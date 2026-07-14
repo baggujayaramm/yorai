@@ -6,8 +6,10 @@ import { ContextAttachmentInfo, ContextAttachmentSection } from '@/components/Co
 import { ReportButton } from '@/components/ReportButton';
 import { freshnessClass } from '@/components/ThreadCard';
 import { PersonalActionButton } from '@/components/PersonalActionButton';
-import { getExperienceById } from '@/lib/data';
-import { colleges, experiences } from '@/lib/seed-data';
+import { getExperienceByIdWithDb } from '@/lib/data';
+import { experiences } from '@/lib/seed-data';
+
+export const dynamic = 'force-dynamic';
 
 type ExperienceDetailProps = {
   params: Promise<{ experienceId: string }>;
@@ -19,13 +21,13 @@ export function generateStaticParams() {
 
 export default async function ExperienceDetailPage({ params }: ExperienceDetailProps) {
   const { experienceId } = await params;
-  const experience = getExperienceById(experienceId);
+  const result = await getExperienceByIdWithDb(experienceId);
+  const experience = result?.experience;
+  const college = result?.college;
 
   if (!experience) {
     notFound();
   }
-
-  const college = colleges.find((item) => item.id === experience.collegeId);
 
   if (!college) {
     notFound();

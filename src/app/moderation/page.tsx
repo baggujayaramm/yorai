@@ -1,13 +1,13 @@
 import { AttachmentModeratorQueue } from '@/components/AttachmentModeratorQueue';
 import { ModeratorQueue } from '@/components/ModeratorQueue';
-import { getCurrentDemoUserId } from '@/lib/demo-auth';
-import { users } from '@/lib/seed-data';
+import { ModeratorOperations } from '@/components/ModeratorOperations';
+import { getCurrentUser } from '@/lib/auth';
+import { canModerate } from '@/lib/permissions';
 
 export default async function ModerationPage() {
-  const userId = await getCurrentDemoUserId();
-  const user = users.find((item) => item.id === userId);
+  const user = await getCurrentUser();
 
-  if (user?.role !== 'MODERATOR') {
+  if (!canModerate(user?.role)) {
     return (
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="rounded border border-line bg-surface/72 p-6 text-sm font-semibold text-ink/70 shadow-soft backdrop-blur-xl">
@@ -19,7 +19,7 @@ export default async function ModerationPage() {
 
   return (
     <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-      <p className="text-sm font-semibold text-iris">Moderator placeholder</p>
+      <p className="text-sm font-semibold text-iris">Moderator operations</p>
       <h1 className="mt-2 text-3xl font-semibold text-ink">Safety queue</h1>
       <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/65">
         Yorai protects useful student context, not attacks. Remove private information, personal attacks, spam, and unsafe uploads while preserving respectful lived experience where possible.
@@ -38,17 +38,7 @@ export default async function ModerationPage() {
         <h2 className="mb-4 text-xl font-semibold text-ink" id="reports">Reports</h2>
         <ModeratorQueue />
       </section>
-      <section className="mt-8 rounded border border-line bg-surface/72 p-5 shadow-soft backdrop-blur-xl" id="flagged">
-        <h2 className="text-xl font-semibold text-ink">Flagged Content</h2>
-        <p className="mt-3 text-sm leading-6 text-ink/65">
-          Review content with multiple reports, privacy issues, unsupported serious allegations, outdated context, personal attacks, foul language, or spam-like promotion.
-        </p>
-        <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold">
-          {['Keep visible', 'Hide content', 'Mark as outdated', 'Mark as disputed', 'Request current student context', 'Remove attachment'].map((label) => (
-            <span className="rounded bg-mist px-3 py-2 text-ink/65" key={label}>{label}</span>
-          ))}
-        </div>
-      </section>
+      <section className="mt-8"><ModeratorOperations admin={user?.role === 'ADMIN'} /></section>
       <section className="mt-8 rounded border border-line bg-surface/72 p-5 shadow-soft backdrop-blur-xl" id="privacy">
         <h2 className="text-xl font-semibold text-ink">Privacy Review</h2>
         <p className="mt-3 text-sm leading-6 text-ink/65">

@@ -7,9 +7,12 @@ import { ReplyForm } from '@/components/ThreadForms';
 import { ThreadCard, freshnessClass } from '@/components/ThreadCard';
 import { ReportButton } from '@/components/ReportButton';
 import { ContextBadge } from '@/components/ContextBadge';
+import { ReplyManageActions, ThreadStateActions } from '@/components/ContributionActions';
 import { ContextAttachmentInfo, ContextAttachmentSection } from '@/components/ContextAttachmentInfo';
-import { getCollegeBySlug, getThreadByIdWithDb, getThreadRepliesWithDb } from '@/lib/data';
+import { getCollegeBySlugWithDb, getThreadByIdWithDb, getThreadRepliesWithDb } from '@/lib/data';
 import { colleges, questions } from '@/lib/seed-data';
+
+export const dynamic = 'force-dynamic';
 
 type ThreadDetailPageProps = {
   params: Promise<{ slug: string; threadId: string }>;
@@ -24,7 +27,7 @@ export function generateStaticParams() {
 
 export default async function ThreadDetailPage({ params }: ThreadDetailPageProps) {
   const { slug, threadId } = await params;
-  const college = getCollegeBySlug(slug);
+  const college = await getCollegeBySlugWithDb(slug);
   const thread = await getThreadByIdWithDb(threadId);
 
   if (!college) {
@@ -48,12 +51,13 @@ export default async function ThreadDetailPage({ params }: ThreadDetailPageProps
       </Link>
 
       <section className="mt-6 grid gap-6">
-        <ThreadCard college={college} thread={thread} />
+        <ThreadCard college={college} thread={thread} variant="detail" />
+        <ThreadStateActions threadId={thread.id} status={thread.status} />
         <ContextAttachmentInfo targetType="THREAD" targetId={thread.id} />
         <ContextAttachmentSection targetType="THREAD" targetId={thread.id} />
 
         {thread.summary && (
-          <section className="rounded border border-line bg-surface/72 p-5 shadow-soft backdrop-blur-xl">
+          <section className="surface-section rounded-3xl p-5">
             <h2 className="font-semibold text-ink">Thread summary</h2>
             <p className="mt-2 text-sm leading-6 text-ink/70">{thread.summary}</p>
             {thread.freshnessSummary && (
@@ -65,7 +69,7 @@ export default async function ThreadDetailPage({ params }: ThreadDetailPageProps
         )}
 
         {thread.attachment && (
-          <section className="rounded border border-line bg-surface/72 p-5 shadow-soft backdrop-blur-xl">
+          <section className="community-context-panel rounded-3xl p-5">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="font-semibold text-ink">{thread.attachment.label}</h2>
@@ -91,7 +95,11 @@ export default async function ThreadDetailPage({ params }: ThreadDetailPageProps
           <LocalReplies threadId={thread.id} />
           {replies.length > 0 ? (
             replies.map((reply) => (
-              <article className="rounded border border-line bg-surface/72 p-5 shadow-soft backdrop-blur-xl" key={reply.id}>
+              <article className={`thread-reply rounded-3xl p-5 ${reply.userId === thread.userId ? 'thread-author-reply' : ''}`} key={reply.id}>
+                <div className="mb-3 flex flex-wrap gap-2">
+                  <span className="state-label state-label-reply">Reply</span>
+                  {reply.userId === thread.userId && <span className="state-label state-label-question">Thread Author</span>}
+                </div>
                 <div className="flex flex-wrap gap-2 text-xs font-semibold">
                   <ContextBadge label={reply.speakerContext ?? reply.authorLabel} tone={reply.trustLabel === 'Current student' ? 'student' : 'trust'} />
                   <span className="rounded bg-iris/10 px-2 py-1 text-iris">{reply.studentTypeContext}</span>
@@ -111,6 +119,7 @@ export default async function ThreadDetailPage({ params }: ThreadDetailPageProps
                   {reply.batchContext && <span>{reply.batchContext}</span>}
                   {reply.communityContext && <span>{reply.communityContext}</span>}
                   <span>{reply.postedAt}</span>
+                  {reply.editedAt && <span>Edited {reply.editedAt}</span>}
                 </div>
                 {reply.communityCounts && reply.communityCounts.length > 0 && (
                   <div className="mt-4 flex flex-wrap gap-2 border-t border-line pt-4">
@@ -121,7 +130,7 @@ export default async function ThreadDetailPage({ params }: ThreadDetailPageProps
                     ))}
                   </div>
                 )}
-                <div className="mt-4 border-t border-line pt-4">
+                <div className="mt-4">
                   <CommunityContextButtons
                     targetType="reply"
                     targetId={reply.id}
@@ -132,16 +141,27 @@ export default async function ThreadDetailPage({ params }: ThreadDetailPageProps
                 <div className="mt-4 flex justify-end border-t border-line pt-4">
                   <ReportButton targetId={reply.id} targetType="reply" />
                 </div>
+                {!reply.deletedAt && (
+                  <div className="mt-4 border-t border-line pt-4">
+                    <ReplyManageActions replyId={reply.id} initialBody={reply.body} initialContext={reply.branchContext} />
+                  </div>
+                )}
               </article>
             ))
           ) : (
-            <div className="rounded border border-dashed border-line bg-surface/72 p-6 text-sm text-ink/65 shadow-soft backdrop-blur-xl">
+            <div className="thread-reply rounded-3xl border-dashed p-6 text-sm text-ink/65">
               No replies yet. Current students and alumni can add context below.
             </div>
           )}
         </section>
 
-        <ReplyForm collegeId={college.id} threadId={thread.id} />
+        {thread.status === 'CLOSED' || thread.status === 'ARCHIVED' ? (
+          <div className="surface-section rounded-3xl p-5 text-sm font-semibold text-ink/65">
+            This thread is closed for new replies, but remains readable for context.
+          </div>
+        ) : (
+          <ReplyForm collegeId={college.id} threadId={thread.id} />
+        )}
       </section>
     </main>
   );

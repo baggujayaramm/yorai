@@ -17,17 +17,20 @@ export function freshnessClass(label = '') {
 type ThreadCardProps = {
   college: College;
   thread: Question;
+  variant?: 'card' | 'detail';
 };
 
-export function ThreadCard({ college, thread }: ThreadCardProps) {
+export function ThreadCard({ college, thread, variant = 'card' }: ThreadCardProps) {
+  const detail = variant === 'detail';
   return (
-    <article className="liquid-glass-card dark-readable-glass live-thread-card rounded-3xl p-5">
+    <article className={`${detail ? 'thread-question' : 'liquid-glass-card dark-readable-glass live-thread-card'} rounded-3xl p-5`}>
+      {detail && <span className="state-label state-label-question mb-3">Question</span>}
       <div className="flex flex-wrap gap-2 text-xs font-semibold">
         <span className={`rounded px-2 py-1 ${freshnessClass(thread.freshnessLabel)}`}>
           {thread.freshnessLabel}
         </span>
         <span className="rounded border border-iris/20 bg-iris/12 px-2 py-1 text-iris dark:border-cyan/25 dark:bg-cyan/15 dark:text-cyan">{thread.currentStudentSignal}</span>
-        <span className="rounded border border-sun/20 bg-sun/12 px-2 py-1 text-sun dark:border-sun/30 dark:bg-sun/15 dark:text-sun">{thread.reconfirmationSignal}</span>
+        <span className={thread.reconfirmationSignal.includes('Reconfirmed') ? 'state-label state-label-reconfirmed' : 'rounded border border-sun/20 bg-sun/12 px-2 py-1 text-sun dark:border-sun/30 dark:bg-sun/15 dark:text-sun'}>{thread.reconfirmationSignal}</span>
         {thread.contextBadge && (
           <span className="soft-badge">{thread.contextBadge}</span>
         )}
@@ -37,7 +40,7 @@ export function ThreadCard({ college, thread }: ThreadCardProps) {
       </div>
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-ink">
+          <h3 className={`${detail ? 'text-2xl sm:text-3xl' : 'text-lg'} font-semibold text-ink`}>
             <Link className="hover:text-iris" href={`/colleges/${college.slug}/threads/${thread.id}`}>
               {thread.title}
             </Link>

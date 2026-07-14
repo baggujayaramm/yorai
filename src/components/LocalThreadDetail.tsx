@@ -52,7 +52,7 @@ export function LocalThreadDetail({ college, threadId }: { college: College; thr
         Back to {college.name}
       </Link>
       <section className="mt-6 grid gap-6">
-        <ThreadCard college={college} thread={thread} />
+        <ThreadCard college={college} thread={thread} variant="detail" />
         <ContextAttachmentInfo targetType="THREAD" targetId={thread.id} />
         <ContextAttachmentSection targetType="THREAD" targetId={thread.id} />
         <CommunityContextButtons targetType="thread" targetId={thread.id} initialFreshness={thread.freshnessLabel} />
@@ -60,7 +60,7 @@ export function LocalThreadDetail({ college, threadId }: { college: College; thr
           <h1 className="text-2xl font-semibold text-ink">Student replies</h1>
           <LocalReplies threadId={thread.id} />
           {thread.status === 'OPEN' && (
-            <div className="rounded border border-dashed border-line bg-surface/72 p-6 text-sm text-ink/65 shadow-soft backdrop-blur-xl">
+            <div className="thread-reply rounded-3xl border-dashed p-6 text-sm text-ink/65">
               No replies yet. Current students and alumni can add context below.
             </div>
           )}

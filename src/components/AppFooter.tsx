@@ -5,6 +5,7 @@ type FooterLink = [string, string];
 const exploreLinks: FooterLink[] = [
   ['Colleges', '/search'],
   ['Live Threads', '/search'],
+  ['College Representative Request', '/college-claim'],
 ];
 
 const exploreText = ['Student Experiences', 'What Actually Works'];
@@ -13,6 +14,10 @@ const trustLinks: FooterLink[] = [
   ['Community Guidelines', '/community-guidelines'],
   ['Privacy', '/privacy'],
   ['Terms', '/terms'],
+  ['Content Policy', '/content-policy'],
+  ['Data Correction', '/data-correction-policy'],
+  ['College Representatives', '/college-representative-policy'],
+  ['Account Suspension', '/account-suspension-policy'],
   ['Report a Concern', '/grievance'],
 ];
 

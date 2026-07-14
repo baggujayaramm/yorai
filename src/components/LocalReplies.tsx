@@ -28,7 +28,10 @@ export function LocalReplies({ threadId }: { threadId: string }) {
   return (
     <>
       {replies.map((reply) => (
-        <article className="rounded border border-line bg-surface/72 p-5 shadow-soft backdrop-blur-xl" key={reply.id}>
+        <article className="thread-reply rounded-3xl p-5" key={reply.id}>
+          <div className="mb-3">
+            <span className="state-label state-label-reply">Reply</span>
+          </div>
           <div className="flex flex-wrap gap-2 text-xs font-semibold">
             <ContextBadge label={reply.speakerContext ?? reply.authorLabel} tone={reply.trustLabel === 'Current student' ? 'student' : 'trust'} />
             <span className="rounded bg-iris/10 px-2 py-1 text-iris">{reply.studentTypeContext}</span>
@@ -48,7 +51,7 @@ export function LocalReplies({ threadId }: { threadId: string }) {
             {reply.communityContext && <span>{reply.communityContext}</span>}
             <span>{reply.postedAt}</span>
           </div>
-          <div className="mt-4 border-t border-line pt-4">
+          <div className="mt-4">
             <CommunityContextButtons targetType="reply" targetId={reply.id} initialFreshness={reply.freshnessLabel} />
           </div>
           <div className="mt-4 flex justify-end border-t border-line pt-4">

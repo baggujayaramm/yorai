@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { College } from '@/lib/types';
-import { saveLocalExperience, saveLocalWhatWorks } from '@/lib/local-post-storage';
 import { ContextAttachmentInfo } from './ContextAttachmentInfo';
 import { CurrentContextNote } from './CurrentContextNote';
 
@@ -58,18 +57,54 @@ type ExperienceStep = 'context' | 'experience' | 'preview';
 type InsightStep = 'form' | 'preview';
 
 export function CreateExperienceForm({ college }: { college: College }) {
-  const [draft, setDraft] = useState<ExperienceDraft>(emptyExperience);
+  const draftKey = `yorai-experience-draft:${college.id}`;
+  const [draft, setDraft] = useState<ExperienceDraft>(() => readDraft(draftKey, emptyExperience));
   const [step, setStep] = useState<ExperienceStep>('context');
   const [shared, setShared] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    window.localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [draftKey, draft]);
 
   const update = (key: keyof ExperienceDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setShared(false);
   };
 
-  const share = () => {
-    saveLocalExperience(college, draft);
+  const share = async () => {
+    setError('');
+    setNotice('');
+    setSubmitting(true);
+    const response = await fetch('/api/experiences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        collegeId: college.id,
+        title: draft.title,
+        body: draft.body,
+        branch: draft.branch,
+        studyPeriod: draft.yearOrBatch,
+        tags: draft.tags,
+        whatHelped: draft.whatWorked,
+        wishIKnewEarlier: draft.wishIKnewEarlier,
+        personalExperience: true,
+      }),
+    }).catch(() => null);
+    setSubmitting(false);
+    if (!response) {
+      setError('Could not reach Yorai. Try again.');
+      return;
+    }
+    const data = await response.json() as { ok?: boolean; error?: string; warning?: string };
+    if (!response.ok || !data.ok) {
+      setError(data.error ?? 'Could not share this experience.');
+      return;
+    }
+    window.localStorage.removeItem(draftKey);
     setShared(true);
+    setNotice(data.warning ?? '');
     setStep('context');
     setDraft(emptyExperience);
   };
@@ -145,28 +180,66 @@ export function CreateExperienceForm({ college }: { college: College }) {
           note="This is how it will appear to others. Make sure it is respectful, useful, and free of private information."
           action="Share experience"
           onAction={share}
+          submitting={submitting}
           onEdit={() => setStep('experience')}
         />
       )}
 
-      {shared && <p className="mt-4 text-sm font-semibold text-leaf">Experience shared locally.</p>}
+      {shared && <p className="mt-4 text-sm font-semibold text-leaf">Experience shared.</p>}
+      {notice && <p className="mt-4 text-sm font-semibold text-sun">{notice}</p>}
+      {error && <p aria-live="assertive" className="mt-4 text-sm font-semibold text-sun" role="alert">{error}</p>}
     </section>
   );
 }
 
 export function CreateWhatWorksForm({ college }: { college: College }) {
-  const [draft, setDraft] = useState<InsightDraft>(emptyInsight);
+  const draftKey = `yorai-insight-draft:${college.id}`;
+  const [draft, setDraft] = useState<InsightDraft>(() => readDraft(draftKey, emptyInsight));
   const [step, setStep] = useState<InsightStep>('form');
   const [shared, setShared] = useState(false);
+  const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  useEffect(() => {
+    window.localStorage.setItem(draftKey, JSON.stringify(draft));
+  }, [draftKey, draft]);
 
   const update = (key: keyof InsightDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
     setShared(false);
   };
 
-  const share = () => {
-    saveLocalWhatWorks(college, draft);
+  const share = async () => {
+    setError('');
+    setNotice('');
+    setSubmitting(true);
+    const response = await fetch('/api/what-works', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        collegeId: college.id,
+        title: draft.title,
+        category: draft.category,
+        branch: draft.branch,
+        advice: draft.practicalAdvice,
+        whyItHelps: draft.whyItHelps,
+        whoShouldKnow: draft.whoShouldKnow,
+        tags: draft.tags,
+      }),
+    }).catch(() => null);
+    setSubmitting(false);
+    if (!response) {
+      setError('Could not reach Yorai. Try again.');
+      return;
+    }
+    const data = await response.json() as { ok?: boolean; error?: string; warning?: string };
+    if (!response.ok || !data.ok) {
+      setError(data.error ?? 'Could not share this insight.');
+      return;
+    }
+    window.localStorage.removeItem(draftKey);
     setShared(true);
+    setNotice(data.warning ?? '');
     setStep('form');
     setDraft(emptyInsight);
   };
@@ -180,12 +253,26 @@ export function CreateWhatWorksForm({ college }: { college: College }) {
       <div className="mt-4">
         <CurrentContextNote />
       </div>
+      {notice && <p className="mt-4 text-sm font-semibold text-sun">{notice}</p>}
 
       {step === 'form' && (
         <div className="mt-5 grid gap-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <InputField value={draft.title} onChange={(value) => update('title', value)} placeholder="A practical insight students can use" label="Title" />
-            <InputField value={draft.category} onChange={(value) => update('category', value)} placeholder="Clubs, labs, first-year advice..." label="Category" />
+            <label className="grid gap-2 text-sm font-semibold text-ink">
+              Category
+              <select className={fieldClass} value={draft.category} onChange={(event) => update('category', event.target.value)}>
+                <option value="">Choose category</option>
+                <option value="academics">Academics</option>
+                <option value="placements">Placements</option>
+                <option value="internships">Internships</option>
+                <option value="clubs">Clubs</option>
+                <option value="projects">Projects</option>
+                <option value="hostel">Hostel</option>
+                <option value="commuting">Commuting</option>
+                <option value="administration">Administration</option>
+              </select>
+            </label>
           </div>
           <TextareaField value={draft.practicalAdvice} onChange={(value) => update('practicalAdvice', value)} label="What works?" placeholder="Share the practical action." />
           <div className="grid gap-3 sm:grid-cols-2">
@@ -218,11 +305,13 @@ export function CreateWhatWorksForm({ college }: { college: College }) {
           note="This is how it will appear to others. Make sure it helps students prepare, not panic, and includes no private information."
           action="Share insight"
           onAction={share}
+          submitting={submitting}
           onEdit={() => setStep('form')}
         />
       )}
 
-      {shared && <p className="mt-4 text-sm font-semibold text-leaf">Insight shared locally for {college.name}.</p>}
+      {shared && <p className="mt-4 text-sm font-semibold text-leaf">Insight shared for {college.name}.</p>}
+      {error && <p aria-live="assertive" className="mt-4 text-sm font-semibold text-sun" role="alert">{error}</p>}
     </section>
   );
 }
@@ -256,7 +345,7 @@ function TagField({ tags, onChange }: { tags: string[]; onChange: (tags: string[
   );
 }
 
-function Preview({ title, context, body, tags, note, action, onAction, onEdit }: { title: string; context: string; body: string; tags: string[]; note: string; action: string; onAction: () => void; onEdit: () => void }) {
+function Preview({ title, context, body, tags, note, action, submitting = false, onAction, onEdit }: { title: string; context: string; body: string; tags: string[]; note: string; action: string; submitting?: boolean; onAction: () => void; onEdit: () => void }) {
   return (
     <div className="glass-panel mt-5 rounded-3xl p-4">
       <p className="text-sm font-semibold text-leaf">Preview</p>
@@ -270,8 +359,8 @@ function Preview({ title, context, body, tags, note, action, onAction, onEdit }:
       )}
       <p className="mt-4 rounded-2xl bg-mist/72 p-3 text-sm leading-6 text-ink/65">{note}</p>
       <div className="mt-4 flex flex-wrap gap-3">
-        <button className="button-primary px-4 py-2.5" onClick={onAction} type="button">{action}</button>
-        <button className="button-secondary px-4 py-2.5" onClick={onEdit} type="button">Edit first</button>
+        <button className="button-primary px-4 py-2.5 disabled:opacity-60" disabled={submitting} onClick={onAction} type="button">{submitting ? 'Sharing...' : action}</button>
+        <button className="button-secondary px-4 py-2.5" disabled={submitting} onClick={onEdit} type="button">Edit first</button>
       </div>
     </div>
   );
@@ -291,4 +380,14 @@ function StepPills({ current, steps }: { current: string; steps: string[] }) {
 
 function splitTags(value: string) {
   return value.split(',').map((tag) => tag.trim()).filter(Boolean);
+}
+
+function readDraft<T>(key: string, fallback: T) {
+  if (typeof window === 'undefined') return fallback;
+  try {
+    const saved = window.localStorage.getItem(key);
+    return saved ? JSON.parse(saved) as T : fallback;
+  } catch {
+    return fallback;
+  }
 }
