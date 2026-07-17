@@ -1,3 +1,14 @@
+export const reportReasons = [
+  'Harassment',
+  'Private information',
+  'Impersonation',
+  'Spam',
+  'Misleading context',
+  'Unsupported accusation',
+  'Irrelevant content',
+  'Other',
+];
+
 export function canReportTarget(reporterUserId: string, ownerUserId: string) {
   return Boolean(reporterUserId && ownerUserId && reporterUserId !== ownerUserId);
 }

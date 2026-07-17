@@ -1,5 +1,3 @@
-import { formatUserContext, getCurrentUserContext } from './user-context-storage';
-
 export const COMMUNITY_CONTEXT_EVENT = 'yorai-community-context-change';
 
 const COMMUNITY_CONTEXT_KEY = 'yorai.communityContext.v1';
@@ -44,38 +42,6 @@ export async function fetchCommunityContextRecords(targetType: CommunityTargetTy
   const response = await fetch(`/api/community-context?${params.toString()}`, { cache: 'no-store' });
   const data = (await response.json()) as { records?: CommunityContextRecord[] };
   return data.records ?? [];
-}
-
-export function addCommunityContext(targetType: CommunityTargetType, targetId: string, actionType: CommunityActionType) {
-  const context = getCurrentUserContext();
-  const userContext = formatUserContext(context);
-  const userId = `mock-${userContext || context.role}`.toLowerCase().replace(/\s+/g, '-');
-  const records = readAll();
-  const exists = records.some(
-    (record) =>
-      record.targetType === targetType &&
-      record.targetId === targetId &&
-      record.actionType === actionType &&
-      record.userId === userId,
-  );
-
-  if (exists) return records;
-
-  const next = [
-    {
-      targetType,
-      targetId,
-      actionType,
-      userId,
-      createdDate: new Date().toISOString().slice(0, 10),
-      userContext,
-      userRole: context.role,
-    },
-    ...records,
-  ];
-  writeAll(next);
-  window.dispatchEvent(new Event(COMMUNITY_CONTEXT_EVENT));
-  return next;
 }
 
 export async function addPersistentCommunityContext(targetType: CommunityTargetType, targetId: string, actionType: CommunityActionType) {
@@ -140,8 +106,4 @@ function readAll() {
   } catch {
     return [];
   }
-}
-
-function writeAll(records: CommunityContextRecord[]) {
-  window.localStorage.setItem(COMMUNITY_CONTEXT_KEY, JSON.stringify(records));
 }

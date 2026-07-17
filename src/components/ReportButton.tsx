@@ -1,7 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useRef, useState } from 'react';
-import { reportReasons } from '@/lib/report-storage';
+import { reportReasons } from '@/lib/report-policy';
 
 type ReportButtonProps = {
   targetType: string;
